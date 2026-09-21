@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>组件版本管理设计</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f7f8fa; --fg:#101828; --muted:#667085; --card:#fff;
+    --border:#e4e7ec; --accent:#0d9488; --code-bg:#f2f4f7;
+    --cyan:#06b6d4; --emerald:#10b981; --violet:#8b5cf6; --amber:#f59e0b; --rose:#f43f5e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0b0e14; --fg:#e6e8ec; --muted:#98a2b3; --card:#141922;
+      --border:#242b36; --accent:#2dd4bf; --code-bg:#1b212b;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+                "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.68; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1060px; margin:0 auto; padding:38px 28px 110px; }
+  code {
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:.87em; background:var(--code-bg);
+    padding:1.5px 5px; border-radius:4px;
+  }
+  pre {
+    background:var(--code-bg); border:1px solid var(--border); border-radius:9px;
+    padding:15px 17px; overflow-x:auto; font-size:12.6px; line-height:1.62;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; margin:14px 0;
+  }
+  pre code { background:none; padding:0; font-size:inherit; }
+  .cm { color:var(--muted); }
+  .hl { color:var(--amber); font-weight:600; }
+
+  h1 { font-size:26px; font-weight:680; margin:0 0 8px; letter-spacing:.01em; }
+  h1 .dot {
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    background:var(--accent); margin-right:11px; vertical-align:middle;
+  }
+  .lede { font-size:15.5px; color:var(--muted); margin:0 0 6px; max-width:900px; }
+  .lede b { color:var(--fg); font-weight:600; }
+  h2 {
+    font-size:12px; font-weight:680; text-transform:uppercase; letter-spacing:.11em;
+    color:var(--muted); margin:52px 0 18px;
+    padding-bottom:9px; border-bottom:1px solid var(--border);
+  }
+  h3 { font-size:15.5px; font-weight:660; margin:30px 0 10px; }
+  h4 { font-size:13.6px; font-weight:640; margin:22px 0 8px; color:var(--fg); }
+  p { margin:10px 0; }
+  ul, ol { margin:10px 0; padding-left:22px; }
+  li { margin:5px 0; }
+
+  .toc {
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:18px 22px; margin:28px 0 0; font-size:13.2px;
+  }
+  .toc a { color:var(--fg); text-decoration:none; display:block; padding:3px 0; }
+  .toc a:hover { color:var(--accent); }
+  .toc .n { color:var(--muted); display:inline-block; width:26px; }
+
+  .hero {
+    background:var(--card); border:1px solid var(--border);
+    border-left:3px solid var(--accent); border-radius:11px;
+    padding:20px 23px; margin:22px 0;
+  }
+  .hero h3 { margin:0 0 7px; font-size:15.5px; font-weight:660; }
+  .hero p { margin:0; font-size:13.8px; color:var(--muted); }
+  .hero b { color:var(--fg); font-weight:600; }
+  .hero.warn { border-left-color:var(--amber); }
+
+  table { width:100%; border-collapse:collapse; font-size:13.2px; margin:14px 0; }
+  th {
+    text-align:left; font-weight:620; color:var(--muted);
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
+    padding:0 13px 9px; border-bottom:1px solid var(--border);
+  }
+  td { padding:10px 13px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .tbl-fix td:first-child { white-space:nowrap; width:1%; color:var(--muted); }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px; margin:18px 0; }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:11px; padding:17px 19px;
+  }
+  .card h4 { margin:0 0 6px; font-size:14px; }
+  .card p { margin:0; font-size:13px; color:var(--muted); }
+  .card .tag {
+    display:inline-block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:5px; margin-bottom:9px; font-weight:640;
+    background:rgba(244,63,94,.12); color:var(--rose);
+  }
+
+  figure { margin:22px 0; }
+  figure svg { width:100%; height:auto; display:block;
+    border:1px solid var(--border); border-radius:10px; background:var(--card); }
+  figcaption { font-size:12.6px; color:var(--muted); margin-top:10px; }
+  figcaption b { color:var(--fg); font-weight:600; }
+
+  .svg-box { fill:var(--card); stroke:var(--border); stroke-width:1.2; }
+  .svg-t  { fill:var(--fg); font-size:12.5px; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-tb { fill:var(--fg); font-size:12.5px; font-weight:650; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-m  { fill:var(--muted); font-size:11px; font-family:ui-monospace,Menlo,monospace; }
+  .svg-l  { stroke:var(--muted); stroke-width:1.2; fill:none; }
+
+  .kv { font-size:12.8px; color:var(--muted); margin:6px 0 0; }
+  .kv b { color:var(--fg); font-weight:600; }
+  .badge {
+    display:inline-block; font-size:10.5px; padding:1.5px 7px; border-radius:5px;
+    font-weight:640; letter-spacing:.04em;
+  }
+  .b-c { background:rgba(139,92,246,.14); color:var(--violet); }
+  .b-g { background:rgba(245,158,11,.14); color:var(--amber); }
+  .b-r { background:rgba(6,182,212,.14); color:var(--cyan); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="dot"></span>组件版本管理设计</h1>
+<p class="lede">把<b>二方组件版本的决策权</b>从各应用的 <code>pom.xml</code> 上移到平台维护的 <b>BOM</b>，
+应用侧一次性改造后永久不动；组件升级通过<b>切换 BOM 版本</b>完成，通过<b>灰度 BOM</b> 控制生效范围。
+目标是同时解决组件发布的两个老问题：<b>推广难</b>与<b>全量风险</b>。</p>
+
+<nav class="toc">
+  <a href="#bg"><span class="n">1</span>背景与痛点</a>
+  <a href="#idea"><span class="n">2</span>核心设计思路</a>
+  <a href="#bom"><span class="n">3</span>BOM 怎么产生</a>
+  <a href="#build"><span class="n">4</span>构建怎么用上 BOM</a>
+</nav>
+
+<!-- ============================ 1 背景 ============================ -->
+<h2 id="bg">1 · 背景与痛点</h2>
+
+<p>公司内部有一批被大量业务应用共用的二方组件（<code>com.xxx:component-c1</code>、<code>c2</code>、<code>c3</code> …）。
+改造前，每个应用在自己的 <code>pom.xml</code> 里直接声明组件版本：</p>
+
+<pre><code><span class="cm">&lt;!-- 应用 A 的 pom.xml：版本硬编码在应用侧 --&gt;</span>
+&lt;dependency&gt;
+  &lt;groupId&gt;com.xxx&lt;/groupId&gt;
+  &lt;artifactId&gt;component-c1&lt;/artifactId&gt;
+  &lt;version&gt;<span class="hl">1.0.0</span>&lt;/version&gt;
+&lt;/dependency&gt;</code></pre>
+
+<p>这套模型让"组件发版"和"组件生效"之间隔着 N 个应用团队，衍生出两个结构性痛点。</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag">痛点 1</span>
+    <h4>推广难</h4>
+    <p>组件发了新版本，只有应用主动改 <code>pom.xml</code>、提 MR、走评审、排进版本节奏，新版本才真正落地。
+    组件方没有任何推动手段，只能逐个群里催。推广成本是 <code>O(应用数 × 组件数 × 升级次数)</code>。</p>
+  </div>
+  <div class="card">
+    <span class="tag">痛点 1 · 后果</span>
+    <h4>版本碎片化</h4>
+    <p>催不动的结果是全站同一组件并存 5~10 个版本。安全补丁无法收口，问题排查要先问"你用的哪版"，
+    组件方被迫长期维护多分支兼容。</p>
+  </div>
+  <div class="card">
+    <span class="tag">痛点 2</span>
+    <h4>全量风险</h4>
+    <p>反过来，如果用统一 parent 强推版本，一次变更对<b>全部应用的下一次构建</b>立即生效。
+    组件的一个隐性行为变更就可能同时打穿几十个应用，缺少"先放一部分应用验证"的手段。</p>
+  </div>
+  <div class="card">
+    <span class="tag">痛点 2 · 后果</span>
+    <h4>回退代价高</h4>
+    <p>出问题时无法界定影响面——不知道哪些应用已经构建带上了新版本；回退要逐个应用改回去，
+    与推广难是同一个问题的两面。</p>
+  </div>
+</div>
+
+<div class="hero">
+  <h3>设计目标</h3>
+  <p>组件升级对应用<b>零改动</b>；升级范围<b>可控到应用 / 微环境粒度</b>；
+  任一制品用了哪些组件版本<b>可追溯、可复现、可回滚</b>；应用侧改造<b>只做一次</b>。</p>
+</div>
+
+<!-- ============================ 2 思路 ============================ -->
+<h2 id="idea">2 · 核心设计思路</h2>
+
+<h3>2.1 平台维护 BOM，应用只 import</h3>
+<p>平台产出一个 <code>packaging=pom</code> 的 BOM 制品，集中声明所有二方组件的版本：</p>
+
+<pre><code><span class="cm">&lt;!-- platform-bom:2026.02 —— 由平台生成并上传 Nexus，内容不可变 --&gt;</span>
+&lt;project&gt;
+  &lt;artifactId&gt;platform-bom&lt;/artifactId&gt;
+  &lt;version&gt;<span class="hl">2026.02</span>&lt;/version&gt;
+  &lt;packaging&gt;pom&lt;/packaging&gt;
+  &lt;properties&gt;
+    &lt;c1.version&gt;1.0.0&lt;/c1.version&gt;
+    &lt;c2.version&gt;1.3.0&lt;/c2.version&gt;
+    &lt;c3.version&gt;2.1.0&lt;/c3.version&gt;
+  &lt;/properties&gt;
+  &lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+      &lt;dependency&gt;&lt;groupId&gt;com.xxx&lt;/groupId&gt;&lt;artifactId&gt;component-c1&lt;/artifactId&gt;&lt;version&gt;${c1.version}&lt;/version&gt;&lt;/dependency&gt;
+      &lt;dependency&gt;&lt;groupId&gt;com.xxx&lt;/groupId&gt;&lt;artifactId&gt;component-c2&lt;/artifactId&gt;&lt;version&gt;${c2.version}&lt;/version&gt;&lt;/dependency&gt;
+      &lt;dependency&gt;&lt;groupId&gt;com.xxx&lt;/groupId&gt;&lt;artifactId&gt;component-c3&lt;/artifactId&gt;&lt;version&gt;${c3.version}&lt;/version&gt;&lt;/dependency&gt;
+    &lt;/dependencies&gt;
+  &lt;/dependencyManagement&gt;
+&lt;/project&gt;</code></pre>
+
+<h3>2.2 应用侧一次性改造，之后永久不动</h3>
+<p>应用 A / B / D 的 pom 完全一致，且<b>只改这一次</b>——业务依赖处不再写 <code>&lt;version&gt;</code>：</p>
+
+<pre><code>&lt;dependencyManagement&gt;
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;com.xxx&lt;/groupId&gt;
+      &lt;artifactId&gt;platform-bom&lt;/artifactId&gt;
+      &lt;version&gt;<span class="hl">${platform-bom.version}</span>&lt;/version&gt;  <span class="cm">&lt;!-- 来自 parent，默认 2026.02 --&gt;</span>
+      &lt;type&gt;pom&lt;/type&gt;
+      &lt;scope&gt;import&lt;/scope&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+
+<span class="cm">&lt;!-- 业务依赖不再写版本号 --&gt;</span>
+&lt;dependency&gt;&lt;groupId&gt;com.xxx&lt;/groupId&gt;&lt;artifactId&gt;component-c1&lt;/artifactId&gt;&lt;/dependency&gt;</code></pre>
+
+<h3>2.3 构建期注入版本，实现零改动升级</h3>
+<p>版本号是 property，因此流水线可以在构建时覆盖，<b>不动任何代码</b>：</p>
+
+<pre><code>mvn clean package <span class="hl">-Dplatform-bom.version=2026.03-RC</span></code></pre>
+
+<div class="hero">
+  <h3>这一步是整个设计的支点</h3>
+  <p>组件版本的决策点从"应用代码仓库"搬到了"平台的构建参数"。于是：
+  <b>推广</b>= 平台改一个参数默认值；<b>灰度</b>= 平台对部分应用传不同的参数值；
+  <b>回滚</b>= 平台把参数值改回去。三件事都不再需要应用配合。</p>
+</div>
+
+<h3>2.4 为什么一个 BOM 不够：分层 BOM</h3>
+<p>单个 <code>platform-bom</code> 能解决推广难，但表达不了"只让 A 和 D 先用新版本"。
+因此落地时把 BOM 拆成三条并行的版本线，按优先级叠加 import：</p>
+
+<table class="tbl-fix">
+  <thead><tr><th>层</th><th>优先级</th><th>谁来改</th><th>生效范围</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="badge b-c">CUSTOM</span></td>
+      <td>最高</td>
+      <td>应用自助申请，生产需 BPM 审批</td>
+      <td>单个应用</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-g">GRAY</span></td>
+      <td>中</td>
+      <td>组件方发起灰度计划</td>
+      <td>灰度名单内的应用 / 微环境</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-r">RELEASE</span></td>
+      <td>兜底</td>
+      <td>组件方正式发布</td>
+      <td>全局所有应用</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>三层按 <code>CUSTOM → GRAY → RELEASE</code> 顺序 import。Maven 的 <code>dependencyManagement</code> 对
+同一坐标采取<b>先声明者胜出</b>，语义天然就是"优先级高的那层赢"，平台内部的版本合并算法与之保持一致。</p>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="组件版本管理总览">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="26" class="svg-m">变更来源</text>
+  <rect x="40" y="38" width="270" height="62" rx="8" class="svg-box"/>
+  <text x="58" y="62" class="svg-tb">组件正式发布</text>
+  <text x="58" y="82" class="svg-m">发布单审批通过后执行</text>
+
+  <rect x="365" y="38" width="270" height="62" rx="8" class="svg-box"/>
+  <text x="383" y="62" class="svg-tb">组件灰度发布</text>
+  <text x="383" y="82" class="svg-m">灰度名单 / 微环境 / 全量灰度</text>
+
+  <rect x="690" y="38" width="270" height="62" rx="8" class="svg-box"/>
+  <text x="708" y="62" class="svg-tb">应用自定义版本</text>
+  <text x="708" y="82" class="svg-m">审批后生效 · 单应用逃生舱</text>
+
+  <path d="M175,100 L175,146" class="svg-l" marker-end="url(#ar)"/>
+  <path d="M500,100 L500,146" class="svg-l" marker-end="url(#ar)"/>
+  <path d="M825,100 L825,146" class="svg-l" marker-end="url(#ar)"/>
+
+  <rect x="24" y="150" width="952" height="122" rx="10" class="svg-box" style="stroke-dasharray:5 4"/>
+  <text x="44" y="174" class="svg-m">平台 BOM 层 · 平台内生成 → 上传 Nexus</text>
+
+  <rect x="56" y="188" width="238" height="64" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="74" y="212" class="svg-tb">RELEASE BOM</text>
+  <text x="74" y="232" class="svg-m">全量清单 · 版本号自增</text>
+
+  <rect x="381" y="188" width="238" height="64" rx="8" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="399" y="212" class="svg-tb">GRAY BOM（可合并）</text>
+  <text x="399" y="232" class="svg-m">按灰度组合去重复用</text>
+
+  <rect x="706" y="188" width="238" height="64" rx="8" class="svg-box" style="stroke:var(--violet)"/>
+  <text x="724" y="212" class="svg-tb">CUSTOM BOM</text>
+  <text x="724" y="232" class="svg-m">按应用维护</text>
+
+  <path d="M500,272 L500,318" class="svg-l" marker-end="url(#ar)"/>
+  <text x="512" y="300" class="svg-m">构建期解析出该应用本次该用哪几个 BOM</text>
+
+  <rect x="230" y="322" width="540" height="72" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="252" y="348" class="svg-tb">应用构建流水线</text>
+  <text x="252" y="370" class="svg-m">mvn clean package -Dplatform-bom.version=&lt;解析结果&gt;</text>
+  <text x="252" y="387" class="svg-m">构建后校验实际依赖是否与解析结果一致</text>
+</svg>
+<figcaption><b>图 1</b>　三类变更来源写入分层 BOM，应用构建时由平台解析出本次该用的 BOM 版本。
+应用代码仓库全程不参与。</figcaption>
+</figure>
+
+<!-- ============================ 3 BOM 产生 ============================ -->
+<h2 id="bom">3 · BOM 怎么产生</h2>
+
+<h3>3.1 版本号</h3>
+<p>BOM 版本号本质上是一个<b>只增不减的批次号</b>，每次变更产生一个新号，永不复用。
+落地时在批次号外再带上 BOM 类型与目标环境，便于同一个 Nexus 仓库里区分：
+<code>Release-10037-prod.RELEASE</code>。
+此外每层每个环境都有一个<b>内容为空的默认版本</b>作为兜底，保证应用即使没有任何灰度和自定义，
+import 也一定能解析到东西。</p>
+
+<div class="hero warn">
+  <h3>关键约束：BOM 内容不可变</h3>
+  <p>Nexus release 仓库不可覆盖，Maven 本地仓库又会缓存。若允许同一个版本号改内容，
+  就会出现"同一制品号在不同机器上构建出不同依赖"的幽灵问题。
+  所以任何变更——包括回滚——都只能产生新版本号，绝不修改已发布的 BOM。</p>
+</div>
+
+<h3>3.2 三层 BOM 分别怎么写</h3>
+
+<table class="tbl-fix">
+  <thead><tr><th>层</th><th>触发</th><th>写入内容</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="badge b-r">RELEASE</span></td>
+      <td>组件发布单审批通过后执行发布</td>
+      <td><b>全量</b>：复制上一版本的完整清单，再覆盖本次变更的组件</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-g">GRAY</span></td>
+      <td>组件方发起灰度计划</td>
+      <td><b>增量</b>：只写本次灰度涉及的组件，同时登记灰度范围（应用名单 / 微环境 / 全量）</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-c">CUSTOM</span></td>
+      <td>应用提交申请，生产环境走审批</td>
+      <td><b>增量</b>：只写该应用指定的组件版本</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="kv"><b>为什么 RELEASE 必须全量、其余可以增量</b>：RELEASE 是优先级最低的兜底层，
+没有下一层为它补齐缺失的组件，必须自包含；GRAY / CUSTOM 在它之上做覆盖，只需写差异。
+全量的代价是内容随发布次数线性增长，收益是任一历史版本都能直接 import、可精确回到任意时间点。</p>
+
+<h4>灰度 BOM 的合并</h4>
+<p>一个应用可能同时命中多个灰度计划（计划 P1 灰度 c1、P2 灰度 c2，而该应用两个名单都在），
+但 Maven 只能 import 一个 GRAY BOM。平台的做法是：<b>按应用求出它命中的灰度集合</b>，
+以这个集合本身作为幂等键去查已有的合并记录——命中就直接复用，没命中才生成一个新的合并 BOM；
+集合里只有一个灰度时直接复用原 BOM，不产生新版本。
+因此合并 BOM 的数量取决于"有多少种不同的命中组合"，而不是应用数量。</p>
+
+<h4>回滚</h4>
+<p>回滚<b>不是</b>删掉新版本或重新上传旧版本，而是<b>用旧的组件版本再发布一次</b>：
+读取发布前记录的线上版本，走与正式发布完全相同的路径，产出一个<b>号更大、内容等于旧状态</b>的新 BOM。
+这样版本号保持单调递增，不违反不可变约束，同时留下完整的审计痕迹。</p>
+<p class="kv"><b>注意</b>：回滚只影响之后的构建，不追溯已构建出的制品；
+线上回退仍需部署回滚到旧制品——旧制品的依赖在构建时已固化，天然正确。</p>
+
+<h3>3.3 从平台数据到 Nexus</h3>
+<p>BOM 的<b>权威副本在平台内</b>，Nexus 上的 pom 文件只是给 Maven 消费的物化产物。写入分两步：
+先在事务内落地 BOM 的版本与内容并标记为"待上传"，再在事务外生成 pom XML 上传 Nexus，成功后标记为"已上传"。</p>
+<p>上传失败不阻塞主流程：定时任务会扫描"待上传"的记录做补偿重试，构建期读取 BOM 时也会再触发一次作为兜底；
+同一版本的并发上传由分布式锁收敛，保证只上传一次。</p>
+
+<!-- ============================ 4 构建 ============================ -->
+<h2 id="build">4 · 构建怎么用上 BOM</h2>
+
+<p>这一节是"版本怎么真正作用到制品上"。链路分四步：
+<b>构建前解析并固化</b> → <b>注入参数构建</b> → <b>构建后依赖校验</b> → <b>制品入库</b>。
+其中第三步是整套设计能否成立的关键——没有它，BOM 只是一个<b>建议</b>，而不是<b>约束</b>。</p>
+
+<figure>
+<svg viewBox="0 0 1000 600" role="img" aria-label="构建期流程">
+  <defs>
+    <marker id="arb" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="320" y="24" width="360" height="52" rx="8" class="svg-box"/>
+  <text x="344" y="46" class="svg-tb">① 流水线触发构建</text>
+  <text x="344" y="65" class="svg-m">应用 · 环境 · 微环境 · 制品号</text>
+
+  <path d="M500,76 L500,102" class="svg-l" marker-end="url(#arb)"/>
+
+  <rect x="320" y="104" width="360" height="66" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="344" y="126" class="svg-tb">② 平台解析 BOM 版本并固化</text>
+  <text x="344" y="145" class="svg-m">CUSTOM / GRAY / RELEASE 三个版本号</text>
+  <text x="344" y="162" class="svg-m">与制品号绑定，重建时读回同一结果</text>
+  <text x="700" y="140" class="svg-m">版本决策在构建开始前完成，</text>
+  <text x="700" y="157" class="svg-m">构建过程本身是确定性的</text>
+
+  <path d="M500,170 L500,196" class="svg-l" marker-end="url(#arb)"/>
+
+  <rect x="320" y="198" width="360" height="66" rx="8" class="svg-box"/>
+  <text x="344" y="220" class="svg-tb">③ 注入参数并构建</text>
+  <text x="344" y="239" class="svg-m">mvn clean package -Dplatform-bom.version=…</text>
+  <text x="344" y="256" class="svg-m">Maven 从 Nexus 拉取 BOM 解析版本</text>
+
+  <path d="M500,264 L500,290" class="svg-l" marker-end="url(#arb)"/>
+
+  <rect x="320" y="292" width="360" height="66" rx="8" class="svg-box"/>
+  <text x="344" y="314" class="svg-tb">④ 采集实际依赖清单</text>
+  <text x="344" y="333" class="svg-m">构建产物真正用了哪些组件版本</text>
+  <text x="344" y="350" class="svg-m">上报平台</text>
+  <text x="700" y="328" class="svg-m">以构建产物为准，</text>
+  <text x="700" y="345" class="svg-m">不以 pom 的"意图"为准</text>
+
+  <path d="M500,358 L500,384" class="svg-l" marker-end="url(#arb)"/>
+
+  <polygon points="500,384 690,428 500,472 310,428" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="404" y="424" class="svg-tb">⑤ 期望版本 vs 实际版本</text>
+  <text x="430" y="442" class="svg-m">逐个组件比对</text>
+
+  <path d="M310,428 L160,428 L160,492" class="svg-l" marker-end="url(#arb)"/>
+  <text x="168" y="420" class="svg-m">不一致</text>
+  <path d="M690,428 L840,428 L840,492" class="svg-l" marker-end="url(#arb)"/>
+  <text x="762" y="420" class="svg-m">一致</text>
+
+  <rect x="36" y="494" width="248" height="72" rx="8" class="svg-box" style="stroke:var(--rose)"/>
+  <text x="58" y="518" class="svg-tb">⑥a 中断构建</text>
+  <text x="58" y="537" class="svg-m">制品不入库、不可部署</text>
+  <text x="58" y="554" class="svg-m">输出逐条差异与原因定位</text>
+
+  <rect x="716" y="494" width="248" height="72" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="738" y="518" class="svg-tb">⑥b 制品入库</text>
+  <text x="738" y="537" class="svg-m">记录校验结论与依赖快照</text>
+  <text x="738" y="554" class="svg-m">进入部署流程</text>
+</svg>
+<figcaption><b>图 2</b>　第 ② 步把版本决策固化下来，第 ⑤ 步验证"固化的决策"是否真的生效，
+两者构成闭环：<b>平台说了算，并且验证平台确实说了算</b>。</figcaption>
+</figure>
+
+<h3>4.1 构建前：解析并固化</h3>
+<p>流水线在拉代码之后、执行 Maven 之前先问平台一次："这个应用、这个环境、这个制品号，
+本次该用哪几个 BOM 版本？"平台一次性完成两件事：<b>算出三层 BOM 的版本号</b>，
+并把结果<b>与制品号绑定存下来</b>。</p>
+<p>解析时有三个输入会影响结果：是否指定了<b>微环境</b>（决定走微环境灰度还是主环境灰度）、
+是否要求<b>忽略灰度</b>（想要一个不含任何灰度组件的干净制品）、是否<b>强制重算</b>。</p>
+
+<div class="hero">
+  <h3>幂等性来自固化，而不是来自"当前状态"</h3>
+  <p>同一制品号重新构建，默认读回<b>首次固化的版本号</b>，而不是重新按"当前最新"解析。
+  否则组件在两次构建之间发了新版本，同一个制品号就会产出不同内容——这会让回滚与问题复现彻底失去意义。
+  只有显式要求强制重算时，才允许按当前状态重新解析。</p>
+</div>
+
+<h3>4.2 构建中：注入参数</h3>
+<p>解析结果以 property 形式注入，应用 pom 与 parent 都不需要知道具体版本值：</p>
+<pre><code>mvn clean package <span class="hl">-Dplatform-bom.version=Release-10037-prod.RELEASE</span>
+<span class="cm"># 分层落地时是三个同样形式的参数，分别对应 CUSTOM / GRAY / RELEASE</span></code></pre>
+<p>三层 import 的<b>顺序</b>写死在 parent 里，应用只继承、不参与。
+顺序写错会让灰度和自定义静默失效，所以它必须是 parent 的一部分，而不是应用可改的内容。</p>
+
+<h3>4.3 构建后：依赖一致性校验</h3>
+
+<div class="hero warn">
+  <h3>为什么必须有这一步</h3>
+  <p>Maven 的 <code>dependencyManagement</code> 只对<b>未显式声明版本</b>的依赖生效。
+  只要应用侧任何一处写了版本号，BOM 就会被静默覆盖——<b>不报错、不警告、构建照常成功</b>。
+  也就是说，改造完成的应用随时可能被一次不起眼的 MR 悄悄改回去，而平台完全无感。
+  没有校验，第 1 节的"推广难"会以一种更隐蔽的形式回归。</p>
+</div>
+
+<h4>BOM 被静默绕过的几种方式</h4>
+<table class="tbl-fix">
+  <thead><tr><th>方式</th><th>表现</th><th>会报错吗</th></tr></thead>
+  <tbody>
+    <tr><td>直接写版本号</td><td>依赖处补回 <code>&lt;version&gt;1.0.0&lt;/version&gt;</code></td><td>否</td></tr>
+    <tr><td>自建 property</td><td>用自己的 property 绕开 BOM 的命名</td><td>否</td></tr>
+    <tr><td>本地声明抢先</td><td>在 import BOM <b>之前</b>声明同坐标，先声明者胜出</td><td>否</td></tr>
+    <tr><td>传递依赖带入</td><td>第三方库传递引入了组件旧版本</td><td>否</td></tr>
+    <tr><td>排除后手动引入</td><td><code>exclusions</code> 排除后自行声明，脱离管控</td><td>否</td></tr>
+    <tr><td>多模块局部覆盖</td><td>子模块自己声明版本，与整体口径不一致</td><td>否</td></tr>
+  </tbody>
+</table>
+<p class="kv">这几种方式的共同点：<b>构建全部成功</b>。所以校验不能依赖 Maven 自身报错，
+必须由平台在构建之后主动比对。</p>
+
+<h4>怎么采集"实际用了什么"</h4>
+<p>在<b>同一次 Maven 调用</b>里顺带导出依赖清单，而不是另起一次构建——否则参数或 profile 一漂移，
+校验的就不是制品那份依赖树了。清单要<b>包含传递依赖</b>（传递引入的旧版本恰恰最难发现），
+并以最终产出可部署制品的模块为准。</p>
+
+<h4>怎么算"应该用什么"</h4>
+<p>平台按<b>固化结果</b>（而不是当前最新）还原期望清单：取该制品固化的三个 BOM 版本，
+展开各自内容后按 <code>CUSTOM &gt; GRAY &gt; RELEASE</code> 优先级合并，得到"组件 → 期望版本"的映射。
+这与 Maven 侧的 import 顺序语义严格对齐，两边算出来的必须是同一个答案。</p>
+
+<h4>比对结果分四类</h4>
+<table class="tbl-fix">
+  <thead><tr><th>结果</th><th>含义</th><th>常见原因</th></tr></thead>
+  <tbody>
+    <tr><td><b>一致</b></td><td>实际版本 = 期望版本</td><td>—</td></tr>
+    <tr><td><b>版本不符</b></td><td>组件在 BOM 中，实际解析出别的版本</td><td>pom 硬编码、本地声明抢先、子模块覆盖</td></tr>
+    <tr><td><b>未纳管</b></td><td>依赖了公司域内组件，但不在任何 BOM 中</td><td>组件未接入、新增子模块漏登记、第三方传递带入</td></tr>
+    <tr><td><b>未使用</b></td><td>BOM 中有，制品实际没依赖</td><td><b>正常</b>：BOM 是全量清单，应用只用其中一部分，不告警</td></tr>
+  </tbody>
+</table>
+
+<h4>不一致怎么处置</h4>
+<table class="tbl-fix">
+  <thead><tr><th>环境</th><th>版本不符</th><th>未纳管</th><th>理由</th></tr></thead>
+  <tbody>
+    <tr><td>dev</td><td>告警</td><td>告警</td><td>开发期频繁试错，硬阻断影响效率</td></tr>
+    <tr><td>sit</td><td><b>中断</b></td><td>告警</td><td>问题必须在测试环境暴露，不能带到生产</td></tr>
+    <tr><td>pre / prod</td><td><b>中断</b></td><td><b>中断</b></td><td>生产制品的依赖必须 100% 可解释</td></tr>
+  </tbody>
+</table>
+
+<div class="hero warn">
+  <h3>校验失败的正解不是加白名单</h3>
+  <p>如果应用确实需要一个与 BOM 不同的版本，正确做法是<b>走 CUSTOM 层申请</b>（生产需审批），
+  让这个差异<b>在平台内可见、可审计、可撤销</b>；而不是在 pom 里硬编码再申请豁免。
+  白名单只留给"组件尚未接入纳管"这类过渡场景，且必须<b>带有效期</b>，到期自动失效并重新阻断。</p>
+</div>
+
+<h4>中断点与失败信息</h4>
+<p>中断点设在<b>制品入库之前</b>：构建步骤返回失败，制品不写入制品库、不产生可部署版本。
+失败信息必须直接可操作——只说一句"校验不通过"等于把排查成本推给应用方，应当包含三样东西：
+<b>期望值来自哪一层 BOM</b>（否则应用方判断不了是不是灰度导致的）、
+<b>实际值由哪行 pom 或哪条传递路径引入</b>、<b>本次构建固化的 BOM 版本</b>。</p>
+
+<pre><code><span class="cm">[依赖校验] 未通过：2 项不一致，构建已中断</span>
+
+com.xxx:component-c1   期望 1.1.0（来自 GRAY 灰度计划 #51）   实际 <span class="hl">1.0.0</span>
+  └─ 来源：app-service/pom.xml:88 显式声明了 version
+  └─ 处理：删除该 version；若确需固定版本，请提交 CUSTOM 版本申请
+
+com.xxx:component-c9   未纳管                                 实际 <span class="hl">0.8.2</span>
+  └─ 来源：由 com.third:sdk:2.1.0 传递引入
+  └─ 处理：联系组件 Owner 接入 BOM 纳管，或在应用侧 exclude</code></pre>
+
+<h4>为什么门禁放平台侧，而不是 parent 插件里</h4>
+<p>技术上也可以用 <code>maven-enforcer-plugin</code> 自定义规则在构建早期失败，反馈更快。
+但把门禁<b>只</b>放在 parent 里有个致命问题：<b>规则更新本身又变成一次推广</b>——
+改规则要发新 parent，发了新 parent 还要等各应用升级，正好踩回第 1 节的痛点，而且应用可以跳过插件。</p>
+<p>所以：<b>平台侧后置校验是唯一门禁</b>（规则随时可调、无法绕过、有全局视图），
+enforcer 规则只作为可选的本地快速反馈，让开发者在本地提前发现问题，但不作为准入依据。</p>
+
+<h3>4.4 构建后：记录下来</h3>
+<p>校验通过后，除了制品入库，平台还要把"这次构建到底用了什么"记下来：
+<b>固化的三层 BOM 版本</b>（并标注是否用了灰度或自定义，制品列表上可以直接看到"含灰度组件"）、
+<b>校验结论</b>、以及<b>实际依赖清单</b>（每个组件的实际版本与引入路径）。</p>
+
+<div class="hero">
+  <h3>这份记录的真正价值</h3>
+  <p>它让"<b>某个组件版本现在被哪些线上制品实际使用</b>"从一个需要全量扫代码才能回答的问题，
+  变成一次查询。安全漏洞应急、组件下线评估、灰度覆盖率统计都依赖这份数据——
+  这是校验环节除门禁之外的第二重收益。</p>
+</div>
+
+<p class="kv"><b>补充</b>：除了构建后校验，平台还可以在 MR 阶段静态扫描应用 pom 里有没有硬编码版本。
+两者是互补的——静态扫描看的是<b>源码意图</b>，能提前拦截但看不到传递依赖；
+构建后校验看的是<b>依赖树事实</b>，能发现全部问题但只能在构建时拦截。</p>
+
+</div>
+</body>
+</html>

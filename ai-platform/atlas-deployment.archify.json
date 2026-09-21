@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Atlas 组件与部署全景",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1820,
+      660
+    ],
+    "views": [
+      {
+        "id": "deploy",
+        "label": "K8s 部署拓扑",
+        "focus": [
+          "browser",
+          "server",
+          "cluster",
+          "bridge",
+          "cli"
+        ],
+        "note": "server 与 cluster 在 atlas-system，会话 Pod 起在 atlas-sessions —— 两个 namespace 让 RBAC 成立。"
+      },
+      {
+        "id": "acp",
+        "label": "ACP 两段传输",
+        "focus": [
+          "server",
+          "bridge",
+          "cli",
+          "higress"
+        ],
+        "note": "server ↔ bridge 是 ACP over WebSocket，bridge ↔ CLI adapter 是 ACP over stdio，两端共用同一份帧模型。"
+      },
+      {
+        "id": "telemetry",
+        "label": "遥测分流",
+        "focus": [
+          "server",
+          "otel",
+          "jaeger",
+          "langfuse"
+        ],
+        "note": "server 只往 Collector 发 OTLP。Jaeger 看 APM 维度，Langfuse 看 LLM 维度，两者分流不是二选一。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "langfuse",
+      "type": "backend",
+      "label": "Langfuse v3",
+      "sublabel": "UI :3001 · web + worker + ClickHouse",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        220,
+        100
+      ]
+    },
+    {
+      "id": "otel",
+      "type": "messagebus",
+      "label": "OTel Collector",
+      "sublabel": ":4318 HTTP · :4317 gRPC",
+      "pos": [
+        345,
+        40
+      ],
+      "size": [
+        210,
+        100
+      ]
+    },
+    {
+      "id": "jaeger",
+      "type": "backend",
+      "label": "Jaeger v2",
+      "sublabel": "UI :16686 · APM 维度",
+      "pos": [
+        650,
+        40
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "web · Next.js 15",
+      "sublabel": ":3000 · 会话工作台",
+      "pos": [
+        40,
+        225
+      ],
+      "size": [
+        190,
+        110
+      ]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "atlas-server",
+      "sublabel": "FastAPI :8000 · Deployment",
+      "pos": [
+        330,
+        220
+      ],
+      "size": [
+        240,
+        120
+      ]
+    },
+    {
+      "id": "cluster",
+      "type": "security",
+      "label": "atlas-cluster",
+      "sublabel": "FastAPI :8010 · Deployment",
+      "pos": [
+        660,
+        225
+      ],
+      "size": [
+        200,
+        110
+      ]
+    },
+    {
+      "id": "bridge",
+      "type": "cloud",
+      "label": "bridge",
+      "sublabel": "Pod 内 1 号进程 · WS 服务端",
+      "pos": [
+        1000,
+        220
+      ],
+      "size": [
+        200,
+        120
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "cloud",
+      "label": "CLI adapter",
+      "sublabel": "adapter 进程 + 真 CLI（黑盒）",
+      "pos": [
+        1290,
+        220
+      ],
+      "size": [
+        200,
+        120
+      ]
+    },
+    {
+      "id": "higress",
+      "type": "external",
+      "label": "Higress AI 网关",
+      "sublabel": "模型调用 · MCP 工具代理",
+      "pos": [
+        1580,
+        220
+      ],
+      "size": [
+        200,
+        120
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": ":5433 · agent · thread · run",
+      "pos": [
+        40,
+        520
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 7",
+      "sublabel": ":6380 · Stream · 锁 · 取消位",
+      "pos": [
+        330,
+        520
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant",
+      "sublabel": ":6333 · Mem0 的向量后端",
+      "pos": [
+        620,
+        520
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "minio",
+      "type": "database",
+      "label": "MinIO · S3",
+      "sublabel": ":9000 · 会话工作区",
+      "pos": [
+        1000,
+        520
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "external",
+      "label": "MCP Server",
+      "sublabel": "经 Higress 代理接入",
+      "pos": [
+        1580,
+        520
+      ],
+      "size": [
+        200,
+        100
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "可观测性 —— Collector 是唯一收口，换后端只改一份配置",
+      "wraps": [
+        "langfuse",
+        "otel",
+        "jaeger"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "K8s · atlas-system",
+      "wraps": [
+        "server",
+        "cluster"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "K8s · atlas-sessions",
+      "wraps": [
+        "bridge",
+        "cli"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "有状态依赖",
+      "wraps": [
+        "pg",
+        "redis",
+        "qdrant",
+        "minio"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-server",
+      "from": "browser",
+      "to": "server",
+      "label": "HTTP · SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "server-cluster",
+      "from": "server",
+      "to": "cluster",
+      "label": "ensure / delete / reap",
+      "labelDy": 84
+    },
+    {
+      "id": "cluster-bridge",
+      "from": "cluster",
+      "to": "bridge",
+      "label": "建 Pod · 配对 Secret",
+      "variant": "security",
+      "labelDy": 84
+    },
+    {
+      "id": "server-bridge",
+      "from": "server",
+      "to": "bridge",
+      "label": "ACP over WS（per-Pod token）",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          610,
+          280
+        ],
+        [
+          610,
+          175
+        ],
+        [
+          1100,
+          175
+        ]
+      ],
+      "labelDx": 180
+    },
+    {
+      "id": "bridge-cli",
+      "from": "bridge",
+      "to": "cli",
+      "label": "ACP over stdio",
+      "variant": "emphasis",
+      "labelDy": 84
+    },
+    {
+      "id": "cli-higress",
+      "from": "cli",
+      "to": "higress",
+      "label": "模型调用",
+      "labelDy": 84
+    },
+    {
+      "id": "higress-mcp",
+      "from": "higress",
+      "to": "mcp",
+      "label": "代理转发",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 120
+    },
+    {
+      "id": "server-otel",
+      "from": "server",
+      "to": "otel",
+      "label": "OTLP",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "otel-jaeger",
+      "from": "otel",
+      "to": "jaeger",
+      "label": "otlp/grpc"
+    },
+    {
+      "id": "otel-langfuse",
+      "from": "otel",
+      "to": "langfuse",
+      "label": "otlp/http",
+      "variant": "dashed"
+    },
+    {
+      "id": "server-pg",
+      "from": "server",
+      "to": "pg",
+      "label": "asyncpg",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "server-redis",
+      "from": "server",
+      "to": "redis",
+      "label": "事件流 · 锁",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 55
+    },
+    {
+      "id": "server-qdrant",
+      "from": "server",
+      "to": "qdrant",
+      "label": "Mem0 记忆读写",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "server-minio",
+      "from": "server",
+      "to": "minio",
+      "label": "S3 API",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "bridge-minio",
+      "from": "bridge",
+      "to": "minio",
+      "label": "挂载 /workspace",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 120,
+      "labelDx": 90
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "部署形态",
+      "items": [
+        "server 与 cluster 同在 atlas-system，各自一个 Deployment",
+        "会话 Pod 起在 atlas-sessions，每会话一个、闲置回收",
+        "两个 namespace 是为了让「唯一持 K8s 写权限」在 RBAC 上成立"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "ACP 两段传输",
+      "items": [
+        "server ↔ bridge：ACP over WebSocket，不经过 cluster",
+        "bridge ↔ CLI adapter：ACP over stdio（行分隔 JSON）",
+        "两端共用 atlas_acp 的帧模型，理解漂移在类型层当场暴露"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "遥测分流",
+      "items": [
+        "server 只往 Collector 发 OTLP，不直连任何后端",
+        "Jaeger 看 APM（冷启动、NAS 抖动、WS 断连）",
+        "Langfuse 看 LLM 维度，挂 profile，make up 默认不启动"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "有状态依赖与凭据",
+      "items": [
+        "Postgres 存业务记录，Redis 走事件 Stream、锁与取消位",
+        "S3 是会话工作区；记忆走 Mem0，Qdrant 是它的向量后端",
+        "Pod 的模型凭据经 Secret 注入，随 Pod 生灭"
+      ]
+    }
+  ]
+}

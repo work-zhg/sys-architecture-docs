@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>微环境设计</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f7f8fa; --fg:#101828; --muted:#667085; --card:#fff;
+    --border:#e4e7ec; --accent:#0d9488; --code-bg:#f2f4f7;
+    --cyan:#06b6d4; --emerald:#10b981; --violet:#8b5cf6; --amber:#f59e0b; --rose:#f43f5e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0b0e14; --fg:#e6e8ec; --muted:#98a2b3; --card:#141922;
+      --border:#242b36; --accent:#2dd4bf; --code-bg:#1b212b;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+                "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.68; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1060px; margin:0 auto; padding:38px 28px 110px; }
+  code {
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:.87em; background:var(--code-bg);
+    padding:1.5px 5px; border-radius:4px;
+  }
+  pre {
+    background:var(--code-bg); border:1px solid var(--border); border-radius:9px;
+    padding:15px 17px; overflow-x:auto; font-size:12.6px; line-height:1.62;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; margin:14px 0;
+  }
+  pre code { background:none; padding:0; font-size:inherit; }
+  .cm { color:var(--muted); }
+  .hl { color:var(--amber); font-weight:600; }
+
+  h1 { font-size:26px; font-weight:680; margin:0 0 8px; letter-spacing:.01em; }
+  h1 .dot {
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    background:var(--accent); margin-right:11px; vertical-align:middle;
+  }
+  .lede { font-size:15.5px; color:var(--muted); margin:0 0 6px; max-width:900px; }
+  .lede b { color:var(--fg); font-weight:600; }
+  h2 {
+    font-size:12px; font-weight:680; text-transform:uppercase; letter-spacing:.11em;
+    color:var(--muted); margin:52px 0 18px;
+    padding-bottom:9px; border-bottom:1px solid var(--border);
+  }
+  h3 { font-size:15.5px; font-weight:660; margin:30px 0 10px; }
+  h4 { font-size:13.6px; font-weight:640; margin:22px 0 8px; color:var(--fg); }
+  p { margin:10px 0; }
+  ul, ol { margin:10px 0; padding-left:22px; }
+  li { margin:5px 0; }
+
+  .toc {
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:18px 22px; margin:28px 0 0; font-size:13.2px;
+  }
+  .toc a { color:var(--fg); text-decoration:none; display:block; padding:3px 0; }
+  .toc a:hover { color:var(--accent); }
+  .toc .n { color:var(--muted); display:inline-block; width:26px; }
+
+  .hero {
+    background:var(--card); border:1px solid var(--border);
+    border-left:3px solid var(--accent); border-radius:11px;
+    padding:20px 23px; margin:22px 0;
+  }
+  .hero h3 { margin:0 0 7px; font-size:15.5px; font-weight:660; }
+  .hero p { margin:0; font-size:13.8px; color:var(--muted); }
+  .hero b { color:var(--fg); font-weight:600; }
+  .hero.warn { border-left-color:var(--amber); }
+
+  table { width:100%; border-collapse:collapse; font-size:13.2px; margin:14px 0; }
+  th {
+    text-align:left; font-weight:620; color:var(--muted);
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
+    padding:0 13px 9px; border-bottom:1px solid var(--border);
+  }
+  td { padding:10px 13px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .tbl-fix td:first-child { white-space:nowrap; width:1%; color:var(--muted); }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px; margin:18px 0; }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:11px; padding:17px 19px;
+  }
+  .card h4 { margin:0 0 6px; font-size:14px; }
+  .card p { margin:0; font-size:13px; color:var(--muted); }
+  .card .tag {
+    display:inline-block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:5px; margin-bottom:9px; font-weight:640;
+    background:rgba(244,63,94,.12); color:var(--rose);
+  }
+  .card .tag.ok { background:rgba(16,185,129,.12); color:var(--emerald); }
+
+  figure { margin:22px 0; }
+  figure svg { width:100%; height:auto; display:block;
+    border:1px solid var(--border); border-radius:10px; background:var(--card); }
+  figcaption { font-size:12.6px; color:var(--muted); margin-top:10px; }
+  figcaption b { color:var(--fg); font-weight:600; }
+
+  .svg-box { fill:var(--card); stroke:var(--border); stroke-width:1.2; }
+  .svg-t  { fill:var(--fg); font-size:12.5px; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-tb { fill:var(--fg); font-size:12.5px; font-weight:650; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-m  { fill:var(--muted); font-size:11px; font-family:ui-monospace,Menlo,monospace; }
+  .svg-l  { stroke:var(--muted); stroke-width:1.2; fill:none; }
+  .svg-ld { stroke:var(--muted); stroke-width:1.2; fill:none; stroke-dasharray:4 3; }
+
+  .kv { font-size:12.8px; color:var(--muted); margin:6px 0 0; }
+  .kv b { color:var(--fg); font-weight:600; }
+  .badge {
+    display:inline-block; font-size:10.5px; padding:1.5px 7px; border-radius:5px;
+    font-weight:640; letter-spacing:.04em;
+  }
+  .b-1 { background:rgba(6,182,212,.14); color:var(--cyan); }
+  .b-2 { background:rgba(139,92,246,.14); color:var(--violet); }
+  .b-m { background:rgba(102,112,133,.16); color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="dot"></span>微环境设计</h1>
+<p class="lede">微环境用来解决<b>同一套测试环境上多个需求并行测试</b>的问题。
+思路是：不为每个需求复制一整套环境，而是<b>只为被改动的应用建立隔离副本</b>，
+其余应用继续复用主环境，再用<b>请求打标</b>把不同需求的流量分别引到各自的副本上。</p>
+
+<nav class="toc">
+  <a href="#bg"><span class="n">1</span>背景：并行测试的冲突</a>
+  <a href="#idea"><span class="n">2</span>整体模型</a>
+  <a href="#ci"><span class="n">3</span>CI 隔离：Nexus 仓库分层</a>
+  <a href="#cd"><span class="n">4</span>CD 隔离：独立 namespace</a>
+  <a href="#traffic"><span class="n">5</span>流量隔离：请求打标与回落</a>
+  <a href="#flow"><span class="n">6</span>完整流程</a>
+  <a href="#limit"><span class="n">7</span>边界与注意事项</a>
+</nav>
+
+<!-- ============================ 1 背景 ============================ -->
+<h2 id="bg">1 · 背景：并行测试的冲突</h2>
+
+<p>典型场景：应用 A 上同时有两个需求在开发，feature1 和 feature2，都要进测试环境验证。
+但测试环境（SIT）只有一套，A 只有一份部署。</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag">现状 1</span>
+    <h4>排队等待</h4>
+    <p>feature1 先上测试环境，feature2 只能等。需求越多排队越长，测试环境成了交付流程里最堵的一段。</p>
+  </div>
+  <div class="card">
+    <span class="tag">现状 2</span>
+    <h4>互相覆盖</h4>
+    <p>两个分支轮流往同一个环境上部署，谁后部署谁生效。测出来的问题经常分不清是自己的改动还是别人的。</p>
+  </div>
+  <div class="card">
+    <span class="tag">现状 3</span>
+    <h4>复制整套环境太贵</h4>
+    <p>最直接的办法是给每个需求拉一整套环境，但几十上百个应用全量复制一遍，
+    机器成本和维护成本都无法接受，而且绝大多数应用在这个需求里<b>根本没有改动</b>。</p>
+  </div>
+</div>
+
+<div class="hero">
+  <h3>微环境的思路</h3>
+  <p>一个需求真正改动的通常只有 1~3 个应用。那就<b>只为这几个应用建副本</b>：
+  feature1 建微环境 1，里面只部署改过的 A；feature2 建微环境 2，里面只部署改过的 A。
+  两个副本各自独立，其余应用共用主环境。
+  再给请求打上微环境标签，让 feature1 的流量走微环境 1 的 A，feature2 的流量走微环境 2 的 A。</p>
+</div>
+
+<p>由此微环境要解决三个隔离问题，分别对应本文的三节：</p>
+<table class="tbl-fix">
+  <thead><tr><th>隔离</th><th>要解决什么</th><th>手段</th></tr></thead>
+  <tbody>
+    <tr><td>CI 隔离</td><td>微环境构建出的包不能污染主环境，但又要能依赖主环境的包</td><td>Nexus 独立仓库 + 代理主环境仓库</td></tr>
+    <tr><td>CD 隔离</td><td>微环境的实例不能和主环境、其他微环境抢资源或互相干扰</td><td>每个微环境一个独立 namespace</td></tr>
+    <tr><td>流量隔离</td><td>不同需求的请求要能分别落到各自的副本上</td><td>请求打标 + 同标优先 + 回落主环境</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================ 2 整体模型 ============================ -->
+<h2 id="idea">2 · 整体模型</h2>
+
+<p>微环境<b>不是</b>一套完整环境，而是"主环境 + 若干差异副本"。
+它依附于某个主环境（dev 或 sit），自己只持有被改动的那几个应用。</p>
+
+<figure>
+<svg viewBox="0 0 1000 430" role="img" aria-label="微环境整体模型">
+  <defs>
+    <marker id="ar1" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="60" y="22" width="240" height="48" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="80" y="42" class="svg-tb">测试人员 U1</text>
+  <text x="80" y="60" class="svg-m">负责 feature1</text>
+
+  <rect x="700" y="22" width="240" height="48" rx="8" class="svg-box" style="stroke:var(--violet)"/>
+  <text x="720" y="42" class="svg-tb">测试人员 U2</text>
+  <text x="720" y="60" class="svg-m">负责 feature2</text>
+
+  <rect x="360" y="104" width="280" height="52" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="382" y="126" class="svg-tb">网关：识别用户 → 给请求打标</text>
+  <text x="382" y="145" class="svg-m">U1 → subenv1　　U2 → subenv2</text>
+
+  <path d="M180,70 C180,92 330,96 356,120" class="svg-l" marker-end="url(#ar1)"/>
+  <path d="M820,70 C820,92 670,96 644,120" class="svg-l" marker-end="url(#ar1)"/>
+
+  <rect x="40" y="196" width="280" height="92" rx="9" class="svg-box" style="stroke:var(--cyan);stroke-dasharray:5 4"/>
+  <text x="60" y="220" class="svg-tb">微环境 1 <tspan class="svg-m">subenv1</tspan></text>
+  <rect x="60" y="232" width="100" height="40" rx="6" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="92" y="257" class="svg-t">A′</text>
+  <text x="176" y="250" class="svg-m">只部署改动过</text>
+  <text x="176" y="266" class="svg-m">的应用 A</text>
+
+  <rect x="680" y="196" width="280" height="92" rx="9" class="svg-box" style="stroke:var(--violet);stroke-dasharray:5 4"/>
+  <text x="700" y="220" class="svg-tb">微环境 2 <tspan class="svg-m">subenv2</tspan></text>
+  <rect x="700" y="232" width="100" height="40" rx="6" class="svg-box" style="stroke:var(--violet)"/>
+  <text x="732" y="257" class="svg-t">A″</text>
+  <text x="816" y="250" class="svg-m">同一个应用 A</text>
+  <text x="816" y="266" class="svg-m">的另一个版本</text>
+
+  <path d="M440,156 C400,176 300,180 250,192" class="svg-l" marker-end="url(#ar1)"/>
+  <path d="M560,156 C600,176 700,180 750,192" class="svg-l" marker-end="url(#ar1)"/>
+
+  <rect x="40" y="320" width="920" height="92" rx="9" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="62" y="344" class="svg-tb">主环境 SIT　<tspan class="svg-m">完整的一套，所有应用都在</tspan></text>
+  <rect x="62" y="356" width="90" height="40" rx="6" class="svg-box"/><text x="100" y="381" class="svg-t">A</text>
+  <rect x="172" y="356" width="90" height="40" rx="6" class="svg-box"/><text x="210" y="381" class="svg-t">B</text>
+  <rect x="282" y="356" width="90" height="40" rx="6" class="svg-box"/><text x="320" y="381" class="svg-t">C</text>
+  <rect x="392" y="356" width="90" height="40" rx="6" class="svg-box"/><text x="430" y="381" class="svg-t">D</text>
+  <text x="500" y="381" class="svg-m">… 其余应用</text>
+
+  <path d="M180,288 L180,316" class="svg-ld" marker-end="url(#ar1)"/>
+  <path d="M820,288 L820,316" class="svg-ld" marker-end="url(#ar1)"/>
+  <text x="196" y="306" class="svg-m">微环境里没有的应用，回落到主环境</text>
+</svg>
+<figcaption><b>图 1</b>　同一个应用 A 在两个微环境里各有一份，互不影响；
+B / C / D 没有改动，两个微环境都直接用主环境那一份。<b>微环境越轻，成本越低。</b></figcaption>
+</figure>
+
+<p>一个微环境由平台统一分配标识（形如 <code>subenv</code> + 随机串），这个标识会同时用作三件事：</p>
+<ul>
+  <li>Nexus 上那一组仓库的名字后缀 —— <b>CI 隔离</b></li>
+  <li>K8s 上那个 namespace 的名字 —— <b>CD 隔离</b></li>
+  <li>请求上打的那个标签的值 —— <b>流量隔离</b></li>
+</ul>
+<p class="kv">三层隔离共用同一个标识，是整套设计能串起来的前提：
+构建产物、运行实例、请求流量都用同一个名字对齐，不需要额外的映射关系。</p>
+
+<!-- ============================ 3 CI ============================ -->
+<h2 id="ci">3 · CI 隔离：Nexus 仓库分层</h2>
+
+<h3>3.1 要解决的矛盾</h3>
+<p>微环境里的应用 A 改了代码，构建会产出新的 jar。这里有一对矛盾：</p>
+<ul>
+  <li><b>不能往主环境仓库传</b>：否则主环境和其他微环境构建时会拉到这个还没验证的包，污染面失控</li>
+  <li><b>又必须能拿到主环境的包</b>：A 依赖 B、C 和一堆二方三方库，这些包都在主环境仓库里，不可能为每个微环境复制一份</li>
+</ul>
+
+<h3>3.2 做法：独立 hosted + group 代理主环境</h3>
+<p>创建微环境时，平台在 Nexus 上为它建一组仓库：</p>
+<ul>
+  <li>两个 <b>hosted 库</b>：一个放 release 版本、一个放 snapshot 版本，<b>只有这个微环境的构建往里传包</b></li>
+  <li>一个 <b>raw hosted 库</b>：放非 Maven 类的制品</li>
+  <li>一个 <b>group 库</b>：成员是"本微环境的两个 hosted 库"+"<b>主环境的 group 库</b>"</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 1000 360" role="img" aria-label="Nexus 仓库分层">
+  <defs>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="36" y="24" width="210" height="56" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="56" y="48" class="svg-tb">微环境构建</text>
+  <text x="56" y="66" class="svg-m">A 的 feature 分支</text>
+
+  <path d="M141,80 L141,116" class="svg-l" marker-end="url(#ar2)"/>
+  <text x="150" y="102" class="svg-m">上传</text>
+
+  <rect x="36" y="118" width="210" height="52" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="56" y="140" class="svg-t">releases-subenv1</text>
+  <text x="56" y="158" class="svg-m">hosted · 本微环境专属</text>
+
+  <rect x="36" y="182" width="210" height="52" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="56" y="204" class="svg-t">snapshots-subenv1</text>
+  <text x="56" y="222" class="svg-m">hosted · 本微环境专属</text>
+
+  <rect x="36" y="246" width="210" height="52" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="56" y="268" class="svg-t">raw-hosted-subenv1</text>
+  <text x="56" y="286" class="svg-m">hosted · 非 Maven 制品</text>
+
+  <rect x="352" y="118" width="250" height="116" rx="9" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="374" y="144" class="svg-tb">public-subenv1</text>
+  <text x="374" y="163" class="svg-m">group · 微环境唯一入口</text>
+  <text x="374" y="188" class="svg-m">成员（有序）：</text>
+  <text x="374" y="205" class="svg-m">① releases-subenv1</text>
+  <text x="374" y="221" class="svg-m">② snapshots-subenv1</text>
+  <text x="374" y="237" class="svg-m">③ 主环境 group</text>
+
+  <path d="M246,144 L348,160" class="svg-l" marker-end="url(#ar2)"/>
+  <path d="M246,208 L348,190" class="svg-l" marker-end="url(#ar2)"/>
+
+  <rect x="700" y="130" width="264" height="92" rx="9" class="svg-box"/>
+  <text x="722" y="156" class="svg-tb">主环境 group</text>
+  <text x="722" y="175" class="svg-m">主环境 hosted 库</text>
+  <text x="722" y="192" class="svg-m">+ 二方组件库</text>
+  <text x="722" y="209" class="svg-m">+ 中央仓代理</text>
+
+  <path d="M602,176 L696,176" class="svg-l" marker-end="url(#ar2)"/>
+  <text x="614" y="168" class="svg-m">代理</text>
+
+  <rect x="352" y="266" width="250" height="52" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="374" y="288" class="svg-t">微环境构建拉依赖</text>
+  <text x="374" y="306" class="svg-m">只配 public-subenv1 一个地址</text>
+  <path d="M477,262 L477,240" class="svg-l" marker-end="url(#ar2)"/>
+</svg>
+<figcaption><b>图 2</b>　微环境的 group 把"自己的包"和"主环境的包"合成一个地址。
+构建侧只需要把仓库地址换成这个 group，其余配置不用动。</figcaption>
+</figure>
+
+<h3>3.3 为什么这样就够了</h3>
+<p>关键在于 group 的<b>查找顺序</b>：先查自己的 hosted 库，查不到再穿透到主环境。于是：</p>
+
+<table class="tbl-fix">
+  <thead><tr><th>取哪个包</th><th>结果</th></tr></thead>
+  <tbody>
+    <tr><td>A 自己刚构建出的包</td><td>命中微环境 hosted 库，拿到<b>本微环境的版本</b></td></tr>
+    <tr><td>B、C 等没改动的应用的包</td><td>微环境库里没有，穿透到主环境，拿到<b>主环境的版本</b></td></tr>
+    <tr><td>二方组件、三方开源库</td><td>同上，穿透到主环境</td></tr>
+  </tbody>
+</table>
+
+<p>这正是"隔离但不重复"的效果：<b>写入是隔离的</b>（只往自己的 hosted 库传），
+<b>读取是叠加的</b>（自己没有就用主环境的）。微环境不需要复制任何一个主环境的包。</p>
+
+<div class="hero">
+  <h3>方向性是关键</h3>
+  <p>代理关系是<b>单向</b>的：微环境 group 代理主环境 group，反之绝不成立。
+  主环境永远看不到微环境的包——这保证了微环境里再怎么折腾，都不可能影响主环境和其他微环境的构建。</p>
+</div>
+
+<h3>3.4 创建与销毁的顺序</h3>
+<p>仓库之间存在引用关系，建与删的顺序不能颠倒：</p>
+
+<figure>
+<svg viewBox="0 0 1000 190" role="img" aria-label="仓库创建与销毁顺序">
+  <defs>
+    <marker id="arA" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text x="26" y="30" class="svg-tb">创建：自底向上</text>
+  <rect x="26" y="48" width="260" height="62" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="46" y="72" class="svg-t">并发创建三个 hosted 库</text>
+  <text x="46" y="92" class="svg-m">releases / snapshots / raw</text>
+  <path d="M286,79 L322,79" class="svg-l" marker-end="url(#arA)"/>
+  <rect x="324" y="48" width="150" height="62" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="344" y="72" class="svg-t">创建 group</text>
+  <text x="344" y="92" class="svg-m">引用上述成员</text>
+  <text x="26" y="140" class="svg-m">成员必须先存在，否则 group 创建失败</text>
+
+  <path d="M500,16 L500,174" class="svg-l" style="stroke-dasharray:4 4"/>
+
+  <text x="530" y="30" class="svg-tb">销毁：自顶向下</text>
+  <rect x="530" y="48" width="170" height="62" rx="8" class="svg-box" style="stroke:var(--rose)"/>
+  <text x="550" y="72" class="svg-t">先删 group</text>
+  <text x="550" y="92" class="svg-m">解除引用关系</text>
+  <path d="M700,79 L736,79" class="svg-l" marker-end="url(#arA)"/>
+  <rect x="738" y="48" width="236" height="62" rx="8" class="svg-box" style="stroke:var(--rose)"/>
+  <text x="758" y="72" class="svg-t">再串行删各 hosted 库</text>
+  <text x="758" y="92" class="svg-m">不能并发</text>
+  <text x="530" y="140" class="svg-m">删除逻辑内部无锁，并发或顺序反了会残留仓库</text>
+</svg>
+<figcaption><b>图 3</b>　仓库的创建与销毁顺序相反。创建时成员先于 group，销毁时 group 先于成员。</figcaption>
+</figure>
+
+<p>此外每一步都要<b>先查后建、已存在就跳过</b>，整个过程加分布式锁，
+避免同时创建多个微环境时互相踩。
+
+
+<!-- ============================ 4 CD ============================ -->
+<h2 id="cd">4 · CD 隔离：独立 namespace</h2>
+
+<h3>4.1 做法</h3>
+<p>创建微环境时，平台在对应集群上建一个<b>以微环境标识命名的 K8s namespace</b>，
+这个微环境里部署的所有应用都进这个 namespace。</p>
+
+<table class="tbl-fix">
+  <thead><tr><th>对象</th><th>主环境</th><th>微环境</th></tr></thead>
+  <tbody>
+    <tr><td>namespace</td><td>主环境自己的 namespace</td><td><code>subenv1</code>（就是微环境标识）</td></tr>
+    <tr><td>Deployment</td><td><code>A</code></td><td><code>A-subenv1</code>（名字带微环境后缀，便于识别）</td></tr>
+    <tr><td>部署目标</td><td>集群 + 主环境 namespace</td><td>集群 + 微环境 namespace</td></tr>
+  </tbody>
+</table>
+
+<p>namespace 带来的是 K8s 原生的隔离能力：名称空间独立、资源配额独立、
+网络策略和服务发现的边界清晰，删除时一次性回收干净，不会有残留资源。</p>
+
+<h3>4.2 只部署改动的应用</h3>
+<p>微环境创建出来是<b>空的</b>，需要显式把应用"绑定"进来，绑定之后该应用才会在这个微环境里有一份部署。
+没绑定的应用在这个微环境里就是不存在的——请求到了这里会回落主环境（见第 5 节）。</p>
+<p class="kv">这是微环境成本低的根本原因：<b>绑定几个应用就只花几个应用的资源</b>，
+而不是复制整套环境。</p>
+
+<h3>4.3 资源回收</h3>
+<p>测试环境的资源是稀缺的，微环境又容易建完就忘，所以回收要做成默认行为：</p>
+<table class="tbl-fix">
+  <thead><tr><th>动作</th><th>效果</th><th>适用</th></tr></thead>
+  <tbody>
+    <tr><td><b>禁用</b></td><td>把微环境里所有 Deployment 的副本数调成 0，保留配置</td>
+        <td>暂时不用，但还想留着，随时能启用恢复</td></tr>
+    <tr><td><b>启用</b></td><td>副本数恢复，实例重新拉起</td><td>继续测试</td></tr>
+    <tr><td><b>删除</b></td><td>删 namespace + 删 Nexus 那组仓库，资源全部释放</td><td>需求测完，微环境不再需要</td></tr>
+    <tr><td><b>过期回收</b></td><td>微环境带有效期，定时任务到期前通知负责人，到期后自动清理</td>
+        <td>兜底，防止无人认领的微环境长期占资源</td></tr>
+  </tbody>
+</table>
+<p class="kv">"禁用"这一档很重要：并行测试常常是断断续续的，
+如果只有删除一个选项，用户就会倾向于一直留着不删。副本数调 0 让"留着"几乎不花钱。</p>
+
+<!-- ============================ 5 流量 ============================ -->
+<h2 id="traffic">5 · 流量隔离：请求打标与回落</h2>
+
+<p>前两节解决了"副本怎么建出来"，这一节解决"请求怎么找到正确的副本"。
+整个机制只有三条规则：<b>打标 → 透传 → 同标优先、无则回落</b>。</p>
+
+<h3>5.1 打标：把人和微环境绑定</h3>
+<p>标从哪来？做法是把<b>测试人员</b>绑定到微环境上：微环境创建时登记一批用户标识，
+这份绑定关系同步给网关。请求进来时，网关识别出是哪个用户，就给这个请求打上对应的微环境标签。</p>
+<p>这样选择对测试人员是<b>无感</b>的——不需要改客户端、不需要手工加 header、不需要记住自己该走哪个环境，
+用自己的账号登录，流量自然就进了自己的微环境。</p>
+
+<h3>5.2 透传：标要跟着整条调用链走</h3>
+<p>标打在入口还不够，它必须随着调用链一路传下去：A 调 B、B 调 C 时，标都要还在。
+这一步依托调用链上下文透传（和 traceId 同一套机制），业务代码无需感知。</p>
+
+<h3>5.3 路由：同标优先，没有就回落</h3>
+<p>服务发现侧拿到请求上的标之后，选实例的规则很简单：</p>
+
+<figure>
+<svg viewBox="0 0 1000 210" role="img" aria-label="选实例判定">
+  <defs>
+    <marker id="arB" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="24" y="76" width="176" height="60" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="44" y="100" class="svg-t">请求带标</text>
+  <text x="44" y="120" class="svg-m">subenv1</text>
+
+  <path d="M200,106 L232,106" class="svg-l" marker-end="url(#arB)"/>
+
+  <rect x="236" y="76" width="234" height="60" rx="8" class="svg-box"/>
+  <text x="256" y="100" class="svg-t">筛选目标服务的实例</text>
+  <text x="256" y="120" class="svg-m">条件：标 = subenv1</text>
+
+  <path d="M470,106 L502,106" class="svg-l" marker-end="url(#arB)"/>
+
+  <polygon points="590,62 674,106 590,150 506,106" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="566" y="111" class="svg-t">有吗</text>
+
+  <path d="M674,106 L714,106 L714,56 L752,56" class="svg-l" marker-end="url(#arB)"/>
+  <text x="720" y="48" class="svg-m">有</text>
+  <path d="M674,106 L714,106 L714,160 L752,160" class="svg-l" marker-end="url(#arB)"/>
+  <text x="720" y="180" class="svg-m">没有</text>
+
+  <rect x="754" y="28" width="222" height="56" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="774" y="52" class="svg-t">调用微环境实例</text>
+  <text x="774" y="71" class="svg-m">微环境里部署了它</text>
+
+  <rect x="754" y="132" width="222" height="56" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="774" y="156" class="svg-t">回落调用主环境实例</text>
+  <text x="774" y="175" class="svg-m">微环境里没部署它</text>
+</svg>
+<figcaption><b>图 4</b>　选实例只有一次判断：同标有实例就用同标的，没有就用主环境的。</figcaption>
+</figure>
+
+
+<figure>
+<svg viewBox="0 0 1000 330" role="img" aria-label="请求路由">
+  <defs>
+    <marker id="ar3" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="30" y="118" width="140" height="56" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="50" y="142" class="svg-tb">网关</text>
+  <text x="50" y="160" class="svg-m">打标 subenv1</text>
+
+  <rect x="36" y="22" width="920" height="68" rx="9" class="svg-box" style="stroke:var(--cyan);stroke-dasharray:5 4"/>
+  <text x="56" y="46" class="svg-m">微环境 subenv1（只绑定了 A 和 C）</text>
+  <rect x="270" y="40" width="110" height="40" rx="6" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="314" y="65" class="svg-t">A′</text>
+  <rect x="700" y="40" width="110" height="40" rx="6" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="744" y="65" class="svg-t">C′</text>
+
+  <rect x="36" y="232" width="920" height="68" rx="9" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="56" y="256" class="svg-m">主环境</text>
+  <rect x="270" y="250" width="110" height="40" rx="6" class="svg-box"/><text x="318" y="275" class="svg-t">A</text>
+  <rect x="485" y="250" width="110" height="40" rx="6" class="svg-box"/><text x="533" y="275" class="svg-t">B</text>
+  <rect x="700" y="250" width="110" height="40" rx="6" class="svg-box"/><text x="748" y="275" class="svg-t">C</text>
+
+  <path d="M170,140 C210,130 240,100 268,84" class="svg-l" marker-end="url(#ar3)"/>
+  <text x="176" y="112" class="svg-m">① 同标命中</text>
+
+  <path d="M380,72 C430,86 440,240 481,262" class="svg-l" marker-end="url(#ar3)"/>
+  <text x="392" y="160" class="svg-m">② 微环境无 B</text>
+  <text x="392" y="176" class="svg-m">回落主环境</text>
+
+  <path d="M595,262 C650,250 660,100 696,78" class="svg-l" marker-end="url(#ar3)"/>
+  <text x="608" y="170" class="svg-m">③ 标仍在，C 同标命中</text>
+  <text x="608" y="186" class="svg-m">重新回到微环境</text>
+</svg>
+<figcaption><b>图 5</b>　回落是<b>逐跳判断</b>的，不是"一旦回落就一直待在主环境"。
+只要标还在，下一跳只要微环境里有对应实例，就会重新回到微环境。</figcaption>
+</figure>
+
+<div class="hero">
+  <h3>"回落"是整套设计成立的关键</h3>
+  <p>正因为找不到就回落主环境，微环境才可以只部署改动的应用。
+  如果没有回落，每个微环境都必须部署全套应用才能跑通链路——那就退化成"复制整套环境"，
+  成本问题原封不动地回来了。</p>
+</div>
+
+<h3>5.4 打标只影响选址</h3>
+<p>标签的作用范围仅限于<b>服务发现选实例</b>这一层，不进入业务逻辑，也不改变请求内容。
+应用代码里没有任何一处需要判断"我现在在哪个微环境"——
+这让微环境对业务代码完全透明，应用不需要为支持微环境做任何改造。</p>
+
+<!-- ============================ 6 流程 ============================ -->
+<h2 id="flow">6 · 完整流程</h2>
+
+<p>微环境的生命周期分三段：一次性准备、日常循环、用完回收。</p>
+
+<figure>
+<svg viewBox="0 0 1000 480" role="img" aria-label="微环境生命周期">
+  <defs>
+    <marker id="arC" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text x="26" y="30" class="svg-m">一次性准备</text>
+
+  <rect x="26" y="44" width="218" height="74" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="46" y="68" class="svg-tb">创建微环境</text>
+  <text x="46" y="88" class="svg-m">分配微环境标识</text>
+  <text x="46" y="105" class="svg-m">确定主环境与集群</text>
+
+  <path d="M244,81 L260,81" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="264" y="44" width="218" height="74" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="284" y="68" class="svg-tb">分配资源</text>
+  <text x="284" y="88" class="svg-m">建 K8s namespace</text>
+  <text x="284" y="105" class="svg-m">建 Nexus 仓库与 group</text>
+
+  <path d="M482,81 L498,81" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="502" y="44" width="218" height="74" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="522" y="68" class="svg-tb">绑定人</text>
+  <text x="522" y="88" class="svg-m">登记测试人员</text>
+  <text x="522" y="105" class="svg-m">同步网关用于打标</text>
+
+  <path d="M720,81 L736,81" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="740" y="44" width="218" height="74" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="760" y="68" class="svg-tb">绑定应用</text>
+  <text x="760" y="88" class="svg-m">加入本次改动的应用</text>
+  <text x="760" y="105" class="svg-m">同步给服务发现</text>
+
+  <path d="M849,118 C849,140 620,140 520,152" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="150" y="158" width="730" height="152" rx="10" class="svg-box" style="stroke-dasharray:5 4"/>
+  <text x="170" y="182" class="svg-m">日常循环 · 每次提交都会重复</text>
+
+  <rect x="172" y="196" width="220" height="74" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="192" y="220" class="svg-tb">构建</text>
+  <text x="192" y="240" class="svg-m">依赖走微环境 group</text>
+  <text x="192" y="257" class="svg-m">产物传微环境 hosted</text>
+
+  <path d="M392,233 L408,233" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="412" y="196" width="220" height="74" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="432" y="220" class="svg-tb">部署</text>
+  <text x="432" y="240" class="svg-m">进微环境 namespace</text>
+  <text x="432" y="257" class="svg-m">实例注册时带标</text>
+
+  <path d="M632,233 L648,233" class="svg-l" marker-end="url(#arC)"/>
+
+  <rect x="652" y="196" width="220" height="74" rx="8" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="672" y="220" class="svg-tb">测试</text>
+  <text x="672" y="240" class="svg-m">按账号自动打标</text>
+  <text x="672" y="257" class="svg-m">同标优先、无则回落</text>
+
+  <path d="M762,270 L762,292 L284,292 L284,274" class="svg-l" marker-end="url(#arC)"/>
+  <text x="440" y="287" class="svg-m">改代码 → 重新构建部署</text>
+
+  <path d="M515,310 L515,338" class="svg-l" marker-end="url(#arC)"/>
+  <path d="M246,338 L784,338" class="svg-l"/>
+  <path d="M246,338 L246,356" class="svg-l" marker-end="url(#arC)"/>
+  <path d="M515,338 L515,356" class="svg-l" marker-end="url(#arC)"/>
+  <path d="M784,338 L784,356" class="svg-l" marker-end="url(#arC)"/>
+
+  <text x="26" y="380" class="svg-m">用完回收</text>
+
+  <rect x="136" y="358" width="220" height="74" rx="8" class="svg-box"/>
+  <text x="156" y="382" class="svg-tb">禁用</text>
+  <text x="156" y="402" class="svg-m">副本数调 0，配置保留</text>
+  <text x="156" y="419" class="svg-m">随时可恢复</text>
+
+  <rect x="405" y="358" width="220" height="74" rx="8" class="svg-box"/>
+  <text x="425" y="382" class="svg-tb">删除</text>
+  <text x="425" y="402" class="svg-m">namespace 与仓库</text>
+  <text x="425" y="419" class="svg-m">一并释放</text>
+
+  <rect x="674" y="358" width="220" height="74" rx="8" class="svg-box"/>
+  <text x="694" y="382" class="svg-tb">过期清理</text>
+  <text x="694" y="402" class="svg-m">到期前通知负责人</text>
+  <text x="694" y="419" class="svg-m">逾期自动删除</text>
+</svg>
+<figcaption><b>图 6</b>　准备段在微环境生命周期里通常只做一次；构建与部署每次提交都会重复；
+回收段的"禁用"让暂时不用的微环境几乎不占资源。</figcaption>
+</figure>
+
+<!-- ============================ 7 边界 ============================ -->
+<h2 id="limit">7 · 边界与注意事项</h2>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag ok">定位</span>
+    <h4>微环境 ≠ 灰度发布</h4>
+    <p>两者都用"打标 + 按标路由"，但目的不同：微环境解决<b>测试环境并行占用</b>，
+    按<b>人</b>分流，生命周期以需求为单位；灰度发布解决<b>生产变更风险</b>，按业务规则分流。
+    不要把微环境的机制直接搬到生产上用。</p>
+  </div>
+  <div class="card">
+    <span class="tag">限制</span>
+    <h4>数据层通常不隔离</h4>
+    <p>微环境隔离的是<b>构建产物、运行实例和流量</b>，数据库、缓存、消息队列一般仍共用主环境。
+    因此两个微环境同时改了同一张表的结构，或者消费同一个 topic，还是会互相干扰。
+    涉及存储变更的需求要特别留意。</p>
+  </div>
+  <div class="card">
+    <span class="tag">限制</span>
+    <h4>标断了就回不来</h4>
+    <p>调用链上任何一处没有透传标（比如经过了不支持透传的中间件、异步任务、
+    定时任务发起的调用），后续链路就会全程走主环境。
+    排查"我的改动怎么没生效"时，这是第一个要查的点。</p>
+  </div>
+  <div class="card">
+    <span class="tag">限制</span>
+    <h4>依赖主环境的健康</h4>
+    <p>微环境大部分链路都落在主环境上，主环境不可用时微环境也测不了。
+    微环境降低的是并行成本，不提供额外的可用性。</p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

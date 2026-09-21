@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Atlas 架构总览",
+    "quality_profile": "showcase",
+    "viewBox": [
+      2040,
+      820
+    ],
+    "views": [
+      {
+        "id": "main-path",
+        "label": "请求主链路",
+        "focus": [
+          "web",
+          "api",
+          "services",
+          "executor",
+          "runtime",
+          "engine",
+          "llm"
+        ],
+        "note": "从浏览器到模型网关：web → api/v1 → services → executor → AgentRuntime → engine/kernel。"
+      },
+      {
+        "id": "event-channel",
+        "label": "事件回传通道",
+        "focus": [
+          "runtime",
+          "executor",
+          "redis",
+          "api",
+          "web"
+        ],
+        "note": "TraceEvent 经 Redis Stream 出站，再由 SSE 推给前端；游标是 seq，断线重连补发缺口。"
+      },
+      {
+        "id": "pod-runtime",
+        "label": "会话 Pod 执行路径",
+        "focus": [
+          "runtime",
+          "cluster",
+          "bridge",
+          "oss"
+        ],
+        "note": "AcpRuntime 走 WebSocket 接 Pod 内的 bridge；Pod 由 cluster 服务幂等供给。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "web · Next.js 15",
+      "sublabel": "会话工作台 · Agent 编辑器 · 事件归约",
+      "tag": "只认 TraceEvent + REST 契约",
+      "pos": [
+        40,
+        250
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "api/v1",
+      "sublabel": "agents · threads · runs · memories",
+      "tag": "SSE 事件流端点",
+      "pos": [
+        340,
+        250
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "services/",
+      "sublabel": "run · thread · approval · compaction",
+      "tag": "幂等 · 会话串行锁",
+      "pos": [
+        620,
+        250
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "executor",
+      "type": "backend",
+      "label": "executor/",
+      "sublabel": "inprocess · assembly · build",
+      "tag": "后台 asyncio.Task",
+      "pos": [
+        900,
+        250
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "runtime",
+      "type": "backend",
+      "label": "AgentRuntime",
+      "sublabel": "「一轮怎么跑」的接缝",
+      "tag": "native / acp 两个实现",
+      "pos": [
+        1180,
+        250
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "engine · atlas_engine",
+      "sublabel": "kernel（图 + 中间件）· contracts",
+      "tag": "纯库：无 FastAPI / DB / 凭据",
+      "pos": [
+        1470,
+        110
+      ],
+      "size": [
+        210,
+        100
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "external",
+      "label": "Higress AI 网关",
+      "sublabel": "模型调用 · MCP 工具代理",
+      "pos": [
+        1780,
+        110
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "bridge",
+      "type": "cloud",
+      "label": "bridge",
+      "sublabel": "Pod 内 1 号进程 · ACP over stdio 驱 CLI",
+      "pos": [
+        1470,
+        390
+      ],
+      "size": [
+        210,
+        100
+      ]
+    },
+    {
+      "id": "oss",
+      "type": "database",
+      "label": "对象存储 · S3",
+      "sublabel": "会话工作区（MinIO / OSS）",
+      "pos": [
+        1780,
+        390
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "cluster",
+      "type": "security",
+      "label": "cluster 服务",
+      "sublabel": "Pod 生命周期 · 配额 · 孤儿回收",
+      "tag": "全仓唯一持 K8s 写权限",
+      "pos": [
+        1180,
+        530
+      ],
+      "size": [
+        190,
+        100
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "agent · thread · message · run · run_event",
+      "pos": [
+        620,
+        530
+      ],
+      "size": [
+        200,
+        100
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 7",
+      "sublabel": "run:events · run:lock · run:cancel",
+      "pos": [
+        900,
+        530
+      ],
+      "size": [
+        190,
+        100
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "server · atlas_server（FastAPI）—— 路由 / 编排 / 持久化 / 凭据",
+      "wraps": [
+        "api",
+        "services",
+        "executor",
+        "runtime"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "engine · atlas_engine（纯库 · 零凭据）",
+      "wraps": [
+        "engine"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "会话 Pod（K8s · 每会话一个）",
+      "wraps": [
+        "bridge"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "api",
+      "label": "HTTP · SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-services",
+      "from": "api",
+      "to": "services",
+      "label": "创建 run · 订阅事件",
+      "labelDy": 74
+    },
+    {
+      "id": "services-executor",
+      "from": "services",
+      "to": "executor",
+      "label": "submit → 202",
+      "variant": "emphasis"
+    },
+    {
+      "id": "executor-runtime",
+      "from": "executor",
+      "to": "runtime",
+      "label": "装配 → 驱动一轮",
+      "variant": "emphasis",
+      "labelDy": 40
+    },
+    {
+      "id": "runtime-events",
+      "from": "runtime",
+      "to": "executor",
+      "label": "TraceEvent 流",
+      "variant": "dashed",
+      "labelDy": -40
+    },
+    {
+      "id": "runtime-engine",
+      "from": "runtime",
+      "to": "engine",
+      "label": "native：装配 kernel 图",
+      "labelDy": 16
+    },
+    {
+      "id": "runtime-bridge",
+      "from": "runtime",
+      "to": "bridge",
+      "label": "ACP over WS"
+    },
+    {
+      "id": "runtime-cluster",
+      "from": "runtime",
+      "to": "cluster",
+      "label": "ensure Pod（幂等）",
+      "labelDy": 100
+    },
+    {
+      "id": "cluster-bridge",
+      "from": "cluster",
+      "to": "bridge",
+      "label": "建 Pod · 配对 token",
+      "variant": "security"
+    },
+    {
+      "id": "engine-llm",
+      "from": "engine",
+      "to": "llm",
+      "label": "模型调用（stream）",
+      "labelDy": -37
+    },
+    {
+      "id": "engine-oss",
+      "from": "engine",
+      "to": "oss",
+      "label": "FilesystemProtocol",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          1575,
+          320
+        ],
+        [
+          1880,
+          320
+        ]
+      ]
+    },
+    {
+      "id": "bridge-oss",
+      "from": "bridge",
+      "to": "oss",
+      "label": "挂载 /workspace"
+    },
+    {
+      "id": "services-pg",
+      "from": "services",
+      "to": "pg",
+      "label": "repositories/ 唯一入口",
+      "labelDy": 100
+    },
+    {
+      "id": "executor-redis",
+      "from": "executor",
+      "to": "redis",
+      "label": "XADD run:events",
+      "labelDy": 100
+    },
+    {
+      "id": "redis-api",
+      "from": "redis",
+      "to": "api",
+      "label": "XREAD → SSE 推流",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          995,
+          680
+        ],
+        [
+          435,
+          680
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三层边界",
+      "items": [
+        "web 只认 TraceEvent 契约与 REST 契约，不感知内核",
+        "server 独占凭据、持久化与编排",
+        "依赖方向靠 CI 守：import-linter 8 条契约，破了就红"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "一轮 run 的骨架",
+      "items": [
+        "POST /threads/{id}/runs 立刻返回 202 {run_id}",
+        "executor 在后台 asyncio.Task 里跑完整轮",
+        "终态必须先落库，再发布 run.finished"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "AgentRuntime 两个实现",
+      "items": [
+        "NativeRuntime：本进程装配 kernel 图，直连模型网关",
+        "AcpRuntime：ACP over WS 接会话 Pod 内的 bridge",
+        "两者都产出 AsyncIterator[TraceEvent]，落库与锁在外层共用"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "事件回传",
+      "items": [
+        "TraceEvent 经 Redis Stream 出站，游标是 seq",
+        "断线重连自动补发缺口，刷新页面可从断点续上",
+        "取消是协作式的，不切断进行中的工具调用"
+      ]
+    }
+  ]
+}

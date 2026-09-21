@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI 合并部署设计</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f7f8fa; --fg:#101828; --muted:#667085; --card:#fff;
+    --border:#e4e7ec; --accent:#0d9488; --code-bg:#f2f4f7;
+    --cyan:#06b6d4; --emerald:#10b981; --violet:#8b5cf6; --amber:#f59e0b; --rose:#f43f5e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0b0e14; --fg:#e6e8ec; --muted:#98a2b3; --card:#141922;
+      --border:#242b36; --accent:#2dd4bf; --code-bg:#1b212b;
+    }
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+                "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.68; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1060px; margin:0 auto; padding:38px 28px 110px; }
+  code {
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:.87em; background:var(--code-bg);
+    padding:1.5px 5px; border-radius:4px;
+  }
+  pre {
+    background:var(--code-bg); border:1px solid var(--border); border-radius:9px;
+    padding:15px 17px; overflow-x:auto; font-size:12.6px; line-height:1.62;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; margin:14px 0;
+  }
+  pre code { background:none; padding:0; font-size:inherit; }
+  .cm { color:var(--muted); }
+  .hl { color:var(--amber); font-weight:600; }
+  .bad { color:var(--rose); font-weight:600; }
+  .good { color:var(--emerald); font-weight:600; }
+
+  h1 { font-size:26px; font-weight:680; margin:0 0 8px; letter-spacing:.01em; }
+  h1 .dot {
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    background:var(--accent); margin-right:11px; vertical-align:middle;
+  }
+  .lede { font-size:15.5px; color:var(--muted); margin:0 0 6px; max-width:900px; }
+  .lede b { color:var(--fg); font-weight:600; }
+  h2 {
+    font-size:12px; font-weight:680; text-transform:uppercase; letter-spacing:.11em;
+    color:var(--muted); margin:52px 0 18px;
+    padding-bottom:9px; border-bottom:1px solid var(--border);
+  }
+  h3 { font-size:15.5px; font-weight:660; margin:30px 0 10px; }
+  h4 { font-size:13.6px; font-weight:640; margin:22px 0 8px; color:var(--fg); }
+  p { margin:10px 0; }
+  ul, ol { margin:10px 0; padding-left:22px; }
+  li { margin:5px 0; }
+
+  .toc {
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:18px 22px; margin:28px 0 0; font-size:13.2px;
+  }
+  .toc a { color:var(--fg); text-decoration:none; display:block; padding:3px 0; }
+  .toc a:hover { color:var(--accent); }
+  .toc .n { color:var(--muted); display:inline-block; width:26px; }
+
+  .hero {
+    background:var(--card); border:1px solid var(--border);
+    border-left:3px solid var(--accent); border-radius:11px;
+    padding:20px 23px; margin:22px 0;
+  }
+  .hero h3 { margin:0 0 7px; font-size:15.5px; font-weight:660; }
+  .hero p { margin:0; font-size:13.8px; color:var(--muted); }
+  .hero b { color:var(--fg); font-weight:600; }
+  .hero.warn { border-left-color:var(--amber); }
+
+  table { width:100%; border-collapse:collapse; font-size:13.2px; margin:14px 0; }
+  th {
+    text-align:left; font-weight:620; color:var(--muted);
+    font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
+    padding:0 13px 9px; border-bottom:1px solid var(--border);
+  }
+  td { padding:10px 13px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  .tbl-fix td:first-child { white-space:nowrap; width:1%; color:var(--muted); }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px; margin:18px 0; }
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:11px; padding:17px 19px;
+  }
+  .card h4 { margin:0 0 6px; font-size:14px; }
+  .card p { margin:0; font-size:13px; color:var(--muted); }
+  .card .tag {
+    display:inline-block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 7px; border-radius:5px; margin-bottom:9px; font-weight:640;
+    background:rgba(244,63,94,.12); color:var(--rose);
+  }
+  .card .tag.ok { background:rgba(16,185,129,.12); color:var(--emerald); }
+
+  figure { margin:22px 0; }
+  figure svg { width:100%; height:auto; display:block;
+    border:1px solid var(--border); border-radius:10px; background:var(--card); }
+  figcaption { font-size:12.6px; color:var(--muted); margin-top:10px; }
+  figcaption b { color:var(--fg); font-weight:600; }
+
+  .svg-box { fill:var(--card); stroke:var(--border); stroke-width:1.2; }
+  .svg-t  { fill:var(--fg); font-size:12.5px; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-tb { fill:var(--fg); font-size:12.5px; font-weight:650; font-family:-apple-system,"PingFang SC",sans-serif; }
+  .svg-m  { fill:var(--muted); font-size:11px; font-family:ui-monospace,Menlo,monospace; }
+  .svg-l  { stroke:var(--muted); stroke-width:1.2; fill:none; }
+  .svg-ld { stroke:var(--muted); stroke-width:1.2; fill:none; stroke-dasharray:4 3; }
+
+  .kv { font-size:12.8px; color:var(--muted); margin:6px 0 0; }
+  .kv b { color:var(--fg); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="dot"></span>UI 合并部署设计</h1>
+<p class="lede">UI 应用的产物就是一堆静态文件，不需要为每个应用单独跑一组容器。
+做法是：<b>Pod 挂载 NAS</b>，部署时把 UI 资源解压到 NAS 上的版本目录，
+再用<b>切换软链</b>的方式让新版本生效——一次切换，整个站点原子地从旧版本换到新版本。</p>
+
+<nav class="toc">
+  <a href="#bg"><span class="n">1</span>背景：两个问题</a>
+  <a href="#idea"><span class="n">2</span>核心设计</a>
+  <a href="#link"><span class="n">3</span>为什么必须用软链</a>
+  <a href="#merge"><span class="n">4</span>合并：一组 Pod 承载多个 UI</a>
+  <a href="#flow"><span class="n">5</span>部署与回滚流程</a>
+  <a href="#note"><span class="n">6</span>注意事项</a>
+</nav>
+
+<!-- ============================ 1 背景 ============================ -->
+<h2 id="bg">1 · 背景：两个问题</h2>
+
+<p>UI 应用按常规的容器化方式部署，是把前端构建产物打进镜像，每个应用跑一组自己的 Nginx Pod。
+这套做法用在 UI 上有两个问题。</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag">问题 1</span>
+    <h4>资源与发布效率</h4>
+    <p>几十个 UI 应用就是几十组 Pod，每组都在跑一个几乎一样的 Nginx，
+    真正的差异只是几十兆静态文件。发一个版本要走"构建镜像 → 推仓库 → 拉镜像 → 滚动重启"，
+    改一行文案也得几分钟，而且每次都在重启一个本来不需要重启的进程。</p>
+  </div>
+  <div class="card">
+    <span class="tag">问题 2</span>
+    <h4>更新过程的一致性</h4>
+    <p>如果改成直接往共享目录里覆盖文件，就会出现<b>新旧混用</b>：
+    浏览器刚拿到新的 <code>index.html</code>，按里面的引用去请求 <code>app.a1b2c3.js</code>，
+    而这个文件还没复制完——直接 404 白屏。反过来先传 js 后传 html 也有对称的问题。</p>
+  </div>
+</div>
+
+<p>第一个问题指向"<b>不要把静态资源放进镜像</b>"，第二个问题指向"<b>版本切换必须是原子的</b>"。
+这两点合起来就是本文的设计。</p>
+
+<!-- ============================ 2 核心设计 ============================ -->
+<h2 id="idea">2 · 核心设计</h2>
+
+<h3>2.1 存储与计算分离</h3>
+<p>Nginx Pod 里<b>不放任何 UI 资源</b>，只挂载一块 NAS，站点根目录指向 NAS 上的部署目录。
+于是 Pod 变成了纯粹的、无状态的、可以长期不动的静态文件服务器：</p>
+
+<table class="tbl-fix">
+  <thead><tr><th></th><th>镜像部署</th><th>NAS 软链部署</th></tr></thead>
+  <tbody>
+    <tr><td>资源在哪</td><td>打进镜像层</td><td>NAS 上的版本目录</td></tr>
+    <tr><td>发版动作</td><td>构建镜像 → 推送 → 拉取 → 滚动重启</td><td>上传解压 → 切软链</td></tr>
+    <tr><td>Pod 是否变动</td><td>每次重建</td><td><b>完全不动</b></td></tr>
+    <tr><td>耗时量级</td><td>分钟</td><td>秒</td></tr>
+    <tr><td>多副本一致性</td><td>滚动期间新旧副本并存</td><td>共享同一份 NAS，天然一致</td></tr>
+  </tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 1000 340" role="img" aria-label="Pod 挂载 NAS 架构">
+  <defs>
+    <marker id="arA" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="30" y="24" width="300" height="130" rx="9" class="svg-box" style="stroke-dasharray:5 4"/>
+  <text x="50" y="48" class="svg-m">K8s 集群</text>
+  <rect x="50" y="60" width="120" height="36" rx="6" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="70" y="83" class="svg-t">Nginx Pod</text>
+  <rect x="190" y="60" width="120" height="36" rx="6" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="210" y="83" class="svg-t">Nginx Pod</text>
+  <text x="50" y="124" class="svg-m">镜像里没有任何 UI 资源</text>
+  <text x="50" y="140" class="svg-m">发版时 Pod 不重建</text>
+
+  <path d="M180,154 L180,186" class="svg-l" marker-end="url(#arA)"/>
+  <text x="190" y="176" class="svg-m">挂载</text>
+
+  <rect x="30" y="188" width="940" height="128" rx="9" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="50" y="212" class="svg-m">NAS</text>
+
+  <rect x="50" y="224" width="260" height="72" rx="7" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="70" y="248" class="svg-tb">部署目录</text>
+  <text x="70" y="268" class="svg-m">站点根目录，内容全是软链</text>
+  <text x="70" y="285" class="svg-m">app-a → …　app-b → …</text>
+
+  <path d="M310,260 L392,260" class="svg-l" marker-end="url(#arA)"/>
+  <text x="318" y="252" class="svg-m">软链指向</text>
+
+  <rect x="396" y="224" width="554" height="72" rx="7" class="svg-box"/>
+  <text x="416" y="248" class="svg-tb">版本目录</text>
+  <text x="416" y="268" class="svg-m">app-a/2024 　 app-a/2025 　 app-a/2026 　 app-b/…</text>
+  <text x="416" y="285" class="svg-m">每个版本一份，解压后不再改动，历史版本保留</text>
+
+  <rect x="700" y="50" width="250" height="90" rx="8" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="720" y="74" class="svg-tb">流水线</text>
+  <text x="720" y="94" class="svg-m">上传制品 → 解压到版本目录</text>
+  <text x="720" y="111" class="svg-m">→ 切换软链</text>
+  <path d="M760,140 L720,184" class="svg-l" marker-end="url(#arA)"/>
+</svg>
+<figcaption><b>图 1</b>　Pod 只负责"发文件"，版本管理完全落在 NAS 的目录结构上。
+流水线不碰集群，只操作 NAS。</figcaption>
+</figure>
+
+<h3>2.2 两类目录：版本目录与部署目录</h3>
+<p>NAS 上的目录分成职责完全不同的两类，这是整套设计的骨架：</p>
+
+<table class="tbl-fix">
+  <thead><tr><th>目录</th><th>职责</th><th>特点</th></tr></thead>
+  <tbody>
+    <tr><td><b>版本目录</b></td>
+        <td>按"应用 + 版本号"存放解压后的静态资源</td>
+        <td>只增不改。一个版本解压进去之后内容<b>永不变动</b>，多个历史版本并存</td></tr>
+    <tr><td><b>部署目录</b></td>
+        <td>Nginx 站点根目录，里面<b>只有软链</b>，不存实际文件</td>
+        <td>每个应用一个软链，指向该应用当前生效的那个版本目录</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="cm"># 版本目录：写入一次，永不改动</span>
+/nas/{环境}/app-a/<span class="hl">2024</span>/app-a/    index.html  app.a1b2c3.js  …
+/nas/{环境}/app-a/<span class="hl">2025</span>/app-a/    index.html  app.d4e5f6.js  …
+/nas/{环境}/app-b/<span class="hl">318</span>/app-b/     …
+
+<span class="cm"># 部署目录：Nginx 的站点根目录，全是软链</span>
+/nas/{环境}/{集群}/{服务组}/
+    app-a  ->  /nas/{环境}/app-a/<span class="hl">2025</span>/app-a     <span class="cm">← 当前生效版本</span>
+    app-b  ->  /nas/{环境}/app-b/<span class="hl">318</span>/app-b</code></pre>
+
+<p class="kv"><b>版本目录不可变</b>是这套设计的前提：因为它不会被改动，
+软链指向它就永远安全——不存在"正在被服务的目录同时在被覆盖"这种情况。</p>
+
+<h3>2.3 部署就是两步</h3>
+<p>把新版本资源准备好，再把软链指过去。前一步慢但不影响线上，后一步快且瞬间生效：</p>
+
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="部署两阶段">
+  <defs>
+    <marker id="arB" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="26" y="30" width="470" height="240" rx="10" class="svg-box" style="stroke-dasharray:5 4"/>
+  <text x="48" y="56" class="svg-tb">准备阶段　<tspan class="svg-m">耗时几十秒，线上无感</tspan></text>
+
+  <rect x="48" y="72" width="424" height="52" rx="7" class="svg-box"/>
+  <text x="68" y="94" class="svg-t">上传制品到临时文件名</text>
+  <text x="68" y="112" class="svg-m">传输中断不会污染正式路径</text>
+
+  <path d="M260,124 L260,144" class="svg-l" marker-end="url(#arB)"/>
+
+  <rect x="48" y="146" width="424" height="52" rx="7" class="svg-box"/>
+  <text x="68" y="168" class="svg-t">改名为正式制品并解压到版本目录</text>
+  <text x="68" y="186" class="svg-m">目标已存在则整步跳过，同版本重复部署不重复解压</text>
+
+  <path d="M260,198 L260,218" class="svg-l" marker-end="url(#arB)"/>
+
+  <rect x="48" y="220" width="424" height="40" rx="7" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="68" y="245" class="svg-t">新版本就位，此时线上仍在跑旧版本</text>
+
+  <path d="M496,150 L540,150" class="svg-l" marker-end="url(#arB)"/>
+
+  <rect x="544" y="30" width="430" height="240" rx="10" class="svg-box" style="stroke:var(--amber);stroke-dasharray:5 4"/>
+  <text x="566" y="56" class="svg-tb">切换阶段　<tspan class="svg-m">一次操作，瞬间完成</tspan></text>
+
+  <rect x="566" y="96" width="386" height="68" rx="7" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="586" y="122" class="svg-t">把部署目录下该应用的软链指向新版本目录</text>
+  <text x="586" y="143" class="svg-m">app-a → …/2024　改为　app-a → …/2025</text>
+
+  <rect x="566" y="190" width="386" height="60" rx="7" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="586" y="215" class="svg-t">下一个请求起，整站都是新版本</text>
+  <text x="586" y="235" class="svg-m">Pod 不重启，Nginx 不 reload</text>
+  <path d="M759,164 L759,186" class="svg-l" marker-end="url(#arB)"/>
+</svg>
+<figcaption><b>图 2</b>　慢的部分（传输、解压）全部发生在旧版本仍在服务时；
+真正的"切换"只有一个动作，不存在中间状态。</figcaption>
+</figure>
+
+<p class="kv"><b>幂等设计</b>：解压前先判断该版本的制品是否已存在，存在就整步跳过。
+这样同一个版本重复部署（重试、回滚回来）不会重复解压，也不会出现"正在解压的半成品被软链指到"的情况。</p>
+
+<!-- ============================ 3 软链 ============================ -->
+<h2 id="link">3 · 为什么必须用软链</h2>
+
+<p>这是整套设计里最容易被质疑的一点：既然都挂 NAS 了，为什么不直接把新文件覆盖进部署目录？
+答案是<b>一致性</b>——前端资源是一组必须整体生效的文件。</p>
+
+<h3>3.1 逐文件覆盖必然出现不一致窗口</h3>
+<p>现代前端构建产物里，<code>index.html</code> 引用的 js / css 文件名都带内容哈希：</p>
+<pre><code><span class="cm">旧版本</span>  index.html  →  引用  app.<span class="hl">a1b2c3</span>.js
+<span class="cm">新版本</span>  index.html  →  引用  app.<span class="hl">d4e5f6</span>.js</code></pre>
+
+<p>逐个文件覆盖时，复制是有先后顺序的，中间必然存在一段"<b>html 和 js 不是同一个版本</b>"的时间：</p>
+
+<figure>
+<svg viewBox="0 0 1000 330" role="img" aria-label="不一致窗口对比">
+  <defs>
+    <marker id="arC" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text x="30" y="36" class="svg-tb">逐文件覆盖</text>
+
+  <rect x="330" y="52" width="300" height="46" rx="5"
+        style="fill:var(--rose);fill-opacity:.12;stroke:var(--rose);stroke-width:1.2"/>
+  <text x="344" y="72" class="svg-m">不一致窗口</text>
+  <text x="344" y="89" class="svg-m">新 html 引用的新 js 还没复制完 → 404 / 白屏</text>
+
+  <path d="M30,120 L950,120" class="svg-l" marker-end="url(#arC)"/>
+  <path d="M120,112 L120,128" class="svg-l"/>
+  <path d="M330,112 L330,128" class="svg-l"/>
+  <path d="M630,112 L630,128" class="svg-l"/>
+
+  <text x="96" y="146" class="svg-m">开始复制</text>
+  <text x="290" y="146" class="svg-m">html 已覆盖</text>
+  <text x="596" y="146" class="svg-m">js 复制完成</text>
+  <text x="404" y="166" class="svg-m">持续时间 = 复制剩余文件的耗时（秒级，文件越多越久）</text>
+
+  <text x="30" y="216" class="svg-tb">软链切换</text>
+
+  <rect x="120" y="230" width="510" height="46" rx="5"
+        style="fill:var(--emerald);fill-opacity:.10;stroke:var(--emerald);stroke-width:1.2"/>
+  <text x="134" y="250" class="svg-m">准备新版本目录（线上仍是旧版本，完全一致）</text>
+  <text x="134" y="267" class="svg-m">此阶段再慢也不影响线上</text>
+
+  <path d="M30,298 L950,298" class="svg-l" marker-end="url(#arC)"/>
+  <path d="M120,290 L120,306" class="svg-l"/>
+  <path d="M630,290 L630,306" class="svg-l" style="stroke:var(--amber);stroke-width:2.4"/>
+
+  <text x="96" y="324" class="svg-m">开始准备</text>
+  <text x="596" y="324" class="svg-m">切链</text>
+  <text x="664" y="266" class="svg-m">切换前：整站旧版本</text>
+  <text x="664" y="284" class="svg-m">切换后：整站新版本</text>
+</svg>
+<figcaption><b>图 3</b>　两种方式的差别不在于"快不快"，而在于<b>有没有一段新旧混用的时间</b>。
+软链把这段时间压缩成一次路径重指向。</figcaption>
+</figure>
+
+<h3>3.2 软链把"多次修改"变成"一次修改"</h3>
+<p>关键在于<b>修改的对象变了</b>：</p>
+<table class="tbl-fix">
+  <thead><tr><th></th><th>修改对象</th><th>修改次数</th><th>中间状态</th></tr></thead>
+  <tbody>
+    <tr><td>逐文件覆盖</td><td>成百上千个文件</td><td>成百上千次</td><td><span class="bad">存在</span>，且持续秒级</td></tr>
+    <tr><td>软链切换</td><td><b>一个符号链接</b></td><td><b>一次</b></td><td><span class="good">不存在</span>可观察的混用状态</td></tr>
+  </tbody>
+</table>
+
+<div class="hero">
+  <h3>本质：把版本切换收敛成单点</h3>
+  <p>静态资源天然是"一组文件必须同版本"的整体。逐文件覆盖是<b>把整体拆成了很多次独立变更</b>，
+  每次变更之间都可能被请求观察到。软链的作用是<b>把这个整体重新收拢成一个指针</b>——
+  指针要么指向旧版本，要么指向新版本，没有第三种状态。</p>
+</div>
+
+<h3>3.3 附带的好处</h3>
+<ul>
+  <li><b>回滚极快</b>：旧版本目录还在，把软链指回去就行，和发布是同一个动作</li>
+  <li><b>发布可预检</b>：新版本目录已经落地但尚未生效，需要的话可以先校验完整性再切</li>
+  <li><b>多副本一致</b>：所有 Pod 共享同一份 NAS，切链对全部副本同时生效，不存在滚动期间的版本参差</li>
+</ul>
+
+<!-- ============================ 4 合并 ============================ -->
+<h2 id="merge">4 · 合并：一组 Pod 承载多个 UI</h2>
+
+<p>因为 Pod 里不含任何应用资源，一个 Nginx Pod 服务哪些应用，
+就<b>只取决于它挂载的部署目录下有哪些软链</b>。于是"合并部署"自然成立：
+多个 UI 应用共用同一组 Pod，各自在部署目录里占一个软链，按路径区分。</p>
+
+<figure>
+<svg viewBox="0 0 1000 280" role="img" aria-label="合并部署">
+  <defs>
+    <marker id="arD" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect x="30" y="40" width="210" height="180" rx="9" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="50" y="64" class="svg-tb">同一组 Nginx Pod</text>
+  <text x="50" y="86" class="svg-m">/app-a/*  →  软链 app-a</text>
+  <text x="50" y="106" class="svg-m">/app-b/*  →  软链 app-b</text>
+  <text x="50" y="126" class="svg-m">/app-c/*  →  软链 app-c</text>
+  <text x="50" y="158" class="svg-m">新增应用只是</text>
+  <text x="50" y="175" class="svg-m">多一个软链，</text>
+  <text x="50" y="192" class="svg-m">不需要新建 Pod</text>
+
+  <path d="M240,130 L296,130" class="svg-l" marker-end="url(#arD)"/>
+
+  <rect x="300" y="40" width="250" height="180" rx="9" class="svg-box" style="stroke:var(--cyan)"/>
+  <text x="320" y="64" class="svg-tb">部署目录</text>
+  <text x="320" y="92" class="svg-m">app-a  →  app-a/2025</text>
+  <text x="320" y="116" class="svg-m">app-b  →  app-b/318</text>
+  <text x="320" y="140" class="svg-m">app-c  →  app-c/77</text>
+  <text x="320" y="176" class="svg-m">各应用互不影响，</text>
+  <text x="320" y="193" class="svg-m">发布粒度仍是单应用</text>
+
+  <path d="M550,130 L606,130" class="svg-l" marker-end="url(#arD)"/>
+
+  <rect x="610" y="40" width="340" height="180" rx="9" class="svg-box"/>
+  <text x="630" y="64" class="svg-tb">版本目录</text>
+  <text x="630" y="92" class="svg-m">app-a/2024　app-a/2025　app-a/2026</text>
+  <text x="630" y="116" class="svg-m">app-b/317　 app-b/318</text>
+  <text x="630" y="140" class="svg-m">app-c/76　  app-c/77</text>
+  <text x="630" y="176" class="svg-m">按应用分开存放，</text>
+  <text x="630" y="193" class="svg-m">历史版本保留用于回滚</text>
+</svg>
+<figcaption><b>图 4</b>　合并的是<b>运行资源</b>，不是发布单元。
+三个应用共用 Pod，但各自的发布、回滚完全独立，互不影响。</figcaption>
+</figure>
+
+<h3>4.1 合并带来的收益</h3>
+<div class="cards">
+  <div class="card">
+    <span class="tag ok">收益</span>
+    <h4>资源收敛</h4>
+    <p>几十组 Nginx Pod 收敛成一组。Pod 数量不再随 UI 应用数量线性增长，新增一个 UI 应用的边际成本接近零。</p>
+  </div>
+  <div class="card">
+    <span class="tag ok">收益</span>
+    <h4>发布互不干扰</h4>
+    <p>虽然共用 Pod，但每个应用只动自己那个软链。A 发布不会让 B 重启，
+    也不会因为 A 的问题牵连 B——因为根本没有重启这个动作。</p>
+  </div>
+  <div class="card">
+    <span class="tag ok">收益</span>
+    <h4>天然适配微环境</h4>
+    <p>微环境里 UI 的改动同样只是"多一份资源"。用一组固定的 Pod，
+    在部署目录下按微环境再分一层目录，每个微环境一套自己的软链，就实现了 UI 的微环境隔离，
+    不需要为每个微环境新建 Nginx。</p>
+  </div>
+</div>
+
+<!-- ============================ 5 流程 ============================ -->
+<h2 id="flow">5 · 部署与回滚流程</h2>
+
+<figure>
+<svg viewBox="0 0 1000 430" role="img" aria-label="部署与回滚流程">
+  <defs>
+    <marker id="arE" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text x="26" y="28" class="svg-m">发布</text>
+
+  <rect x="26" y="42" width="215" height="72" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="46" y="66" class="svg-tb">流水线取制品</text>
+  <text x="46" y="86" class="svg-m">按应用与版本号</text>
+  <text x="46" y="103" class="svg-m">从制品库下载</text>
+
+  <path d="M241,78 L257,78" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="261" y="42" width="215" height="72" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="281" y="66" class="svg-tb">上传到 NAS</text>
+  <text x="281" y="86" class="svg-m">先写临时文件名</text>
+  <text x="281" y="103" class="svg-m">完整后再改为正式名</text>
+
+  <path d="M476,78 L492,78" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="496" y="42" width="215" height="72" rx="8" class="svg-box" style="stroke:var(--accent)"/>
+  <text x="516" y="66" class="svg-tb">解压到版本目录</text>
+  <text x="516" y="86" class="svg-m">已存在则跳过</text>
+  <text x="516" y="103" class="svg-m">保证幂等</text>
+
+  <path d="M711,78 L727,78" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="731" y="42" width="243" height="72" rx="8" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="751" y="66" class="svg-tb">切换软链</text>
+  <text x="751" y="86" class="svg-m">指向新版本目录</text>
+  <text x="751" y="103" class="svg-m">整站瞬间生效</text>
+
+  <path d="M852,114 C852,140 600,140 500,152" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="285" y="154" width="430" height="60" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="305" y="178" class="svg-tb">回写部署结果</text>
+  <text x="305" y="198" class="svg-m">记录该应用当前生效的版本，用于查询与回滚选择</text>
+
+  <text x="26" y="264" class="svg-m">回滚</text>
+
+  <rect x="140" y="248" width="260" height="72" rx="8" class="svg-box"/>
+  <text x="160" y="272" class="svg-tb">选择历史版本</text>
+  <text x="160" y="292" class="svg-m">版本目录未被删除</text>
+  <text x="160" y="309" class="svg-m">资源仍然完整</text>
+
+  <path d="M400,284 L456,284" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="460" y="248" width="260" height="72" rx="8" class="svg-box" style="stroke:var(--amber)"/>
+  <text x="480" y="272" class="svg-tb">软链指回旧版本</text>
+  <text x="480" y="292" class="svg-m">与发布是同一个动作</text>
+  <text x="480" y="309" class="svg-m">不需要重新构建</text>
+
+  <path d="M720,284 L776,284" class="svg-l" marker-end="url(#arE)"/>
+
+  <rect x="780" y="248" width="194" height="72" rx="8" class="svg-box" style="stroke:var(--emerald)"/>
+  <text x="800" y="280" class="svg-tb">秒级完成</text>
+  <text x="800" y="300" class="svg-m">Pod 依旧不动</text>
+
+  <rect x="140" y="352" width="834" height="56" rx="8" class="svg-box" style="stroke-dasharray:5 4"/>
+  <text x="160" y="376" class="svg-m">定期清理：版本目录只保留最近若干个版本，过老的版本目录回收，避免 NAS 无限增长</text>
+  <text x="160" y="394" class="svg-m">清理时必须跳过当前软链指向的版本，以及仍可能被回滚用到的近期版本</text>
+</svg>
+<figcaption><b>图 5</b>　发布与回滚是同一条路径上的同一个动作——切软链。
+区别只是指向新版本还是旧版本。</figcaption>
+</figure>
+
+<!-- ============================ 6 注意 ============================ -->
+<h2 id="note">6 · 注意事项</h2>
+
+<div class="hero warn">
+  <h3>替换指向目录的软链，必须显式禁止跟随</h3>
+  <p>这是实现上最容易踩的坑：当部署目录下已经存在一个<b>指向目录</b>的同名软链时，
+  普通的"强制创建软链"会<b>跟随旧软链进入它指向的目录</b>，
+  在旧版本目录<i>里面</i>再建一个链接，而不是替换原来那个。
+  表现为发布"成功"但页面还是旧的，且版本目录里凭空多出嵌套链接。
+  创建软链时必须带上<b>不跟随符号链接</b>的选项。</p>
+</div>
+
+<div class="hero warn">
+  <h3>切换本身要做成原子替换</h3>
+  <p>"删掉旧链接再建新链接"是两步操作，中间有一个极短的窗口链接不存在，此时请求会 404。
+  更稳的做法是<b>先创建一个临时名字的新链接，再用原子改名覆盖旧链接</b>，
+  让切换过程始终有一个有效链接存在。
+  窗口虽然只有微秒级，但高流量站点仍可能采到——既然可以彻底消除，就不要留。</p>
+</div>
+
+<table class="tbl-fix">
+  <thead><tr><th>事项</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>上传的完整性</td>
+        <td>制品先以临时名上传、完整后再改名，避免半个包被当成正式制品解压</td></tr>
+    <tr><td>版本目录清理</td>
+        <td>版本目录只增不减，必须有清理策略；清理时要排除当前生效版本与近期可回滚版本</td></tr>
+    <tr><td>浏览器缓存</td>
+        <td>html 必须禁缓存、带哈希的静态资源可长缓存。否则服务端切完了，
+            用户浏览器里还是旧 html 指向旧 js——不一致从服务端转移到了客户端</td></tr>
+    <tr><td>NAS 成为关键依赖</td>
+        <td>所有 UI 的可用性都压在这块存储上。NAS 抖动会同时影响全部合并在一起的应用，
+            需要相应的容量与可用性保障，必要时按业务重要性拆分多块</td></tr>
+    <tr><td>合并的影响面</td>
+        <td>共用 Pod 意味着共用 Nginx 配置与资源配额。
+            单个应用的异常流量会影响同组其他应用，重要应用可以单独成组</td></tr>
+    <tr><td>不适用的场景</td>
+        <td>不挂 NAS 的集群、或需要 CDN 分发的 C 端站点，走各自的部署方式
+            （如资源直接同步到对象存储 + CDN），与本方案并行存在</td></tr>
+  </tbody>
+</table>
+
+</div>
+</body>
+</html>
